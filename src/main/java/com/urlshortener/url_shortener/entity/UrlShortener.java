@@ -1,0 +1,36 @@
+package com.urlshortener.url_shortener.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "url_shortener")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UrlShortener {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(name = "original_url", nullable = false, length = 100)
+    private String originalUrl;
+
+    @Column(name = "short_code", nullable = false, unique = true, length = 50)
+    private String shortCode;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "visit_count")
+    private Integer visitCount;
+
+    @PrePersist
+    void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        this.visitCount = 0;
+    }
+}
