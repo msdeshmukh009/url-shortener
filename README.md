@@ -140,3 +140,153 @@ mvn test
 ## Stopping the app
 
 Press `Ctrl + C` in the terminal where the app is running.
+
+---
+
+## Load Testing
+
+The project includes a k6-based load testing setup that ramps concurrent users from 50 → 2500 and measures latency percentiles (P50, P90, P95, P99) and failure rates.
+
+### Prerequisites
+
+Install k6 and Node.js:
+
+```bash
+winget install k6
+winget install OpenJS.NodeJS
+```
+
+Verify installation:
+
+```bash
+k6 version
+node --version
+```
+
+### Tune Spring Boot for stress testing
+
+Add the following to `src/main/resources/application.properties` so the app isn't the bottleneck:
+
+```properties
+# Tomcat
+server.tomcat.threads.max=1000
+server.tomcat.threads.min-spare=50
+server.tomcat.accept-count=500
+
+# HikariCP
+spring.datasource.hikari.maximum-pool-size=1000
+spring.datasource.hikari.minimum-idle=20
+spring.datasource.hikari.connection-timeout=30000
+```
+
+Restart Spring Boot after making these changes.
+
+### Project structure
+
+```
+k6/
+├── package.json             # npm scripts
+├── scripts/
+│   ├── stress-test.js       # the k6 test definition
+│   └── run-test.js          # orchestrator (runs k6 + generates HTML report)
+└── results/
+    ├── json/                # raw k6 output (timestamped)
+    └── html/                # generated reports (timestamped)
+```
+
+### Run a load test
+
+From the `k6/` directory:
+
+```bash
+cd k6
+npm run stress
+```
+
+This single command:
+1. Runs the k6 stress test with ramped stages from 50 to 2500 VUs
+2. Saves the JSON output to `k6/results/json/stress-<timestamp>.json`
+3. Generates an HTML report at `k6/results/html/stress-<timestamp>.html`
+4. Opens the report automatically in your browser
+
+The npm script is defined in `k6/package.json`:
+
+```json
+{
+  "scripts": {
+    "stress": "node scripts/run-test.js"
+  }
+}
+```
+
+### Reading the results
+
+The HTML report contains three line charts:
+
+#### 1. Latency Over Time (POST /api/shorten)
+
+Shows P50, P90, P95, and P99 response times in milliseconds for the create endpoint.
+
+![POST /api/shorten latency graph](docs/images/shorten-latency.jpg)
+
+**What to look for:**
+- Flat lines at low VUs = system is healthy
+- Lines diverging upwards = queues building up
+- P99 jumping disproportionately = tail latency degradation
+- The point where the curve goes vertical = your breaking point
+
+#### 2. Latency Over Time (GET /api/redirect)
+
+Same percentiles but for the redirect endpoint. Usually faster than shorten since it's a simple lookup.
+
+#### 3. Failed Requests Over Time
+
+Shows both failure **rate (%)** on the left Y-axis and raw **failure count** on the right Y-axis. The dual-axis lets you see tiny failure rates that would otherwise appear flat at 0%.
+
+![Failure rate graph](docs/images/failure-rate.jpg)
+
+**What to look for:**
+- Stays at 0% as long as the system can handle the load
+- Sharp upward jumps indicate timeouts or connection refusals
+- Even a 0.4% failure rate is significant at scale
+
+### Understanding the metrics
+
+| Metric | What it means |
+|---|---|
+| **P50** | Median — half your users see this latency or better |
+| **P90** | 90% of users see this latency or better |
+| **P95** | 95% of users — typical SLA target |
+| **P99** | 99% of users — tail latency, hardest to optimize |
+| **Failure Rate** | Percentage of requests that returned 4xx/5xx or timed out |
+
+### Monitoring during a test
+
+Open psql in a separate window and run during the test to see DB connection usage:
+
+```sql
+SELECT
+  count(*) FILTER (WHERE state = 'active') AS active,
+  count(*) FILTER (WHERE state = 'idle')   AS idle,
+  count(*)                                 AS total
+FROM pg_stat_activity
+WHERE application_name = 'PostgreSQL JDBC Driver';
+```
+
+If `active` stays close to your HikariCP `maximum-pool-size`, you're hitting DB concurrency limits.
+
+### Adjusting the load profile
+
+Edit `k6/scripts/stress-test.js` to change the load stages:
+
+```javascript
+stages: [
+  { duration: '10s', target: 50   },
+  { duration: '30s', target: 50   },
+  { duration: '10s', target: 100  },
+  { duration: '30s', target: 100  },
+  // ... add or remove stages as needed
+],
+```
+
+Each stage has a `duration` and `target` (number of concurrent virtual users).

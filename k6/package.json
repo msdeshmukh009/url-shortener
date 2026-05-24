@@ -1,0 +1,11 @@
+{
+  "name": "k6_test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "run-test.js",
+  "scripts": {
+     "stress": "node scripts/run-test.js"
+  },
+  "author": "Mahesh",
+  "license": "ISC"
+}

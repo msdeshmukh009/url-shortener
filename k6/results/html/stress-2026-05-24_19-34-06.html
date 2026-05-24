@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>k6 Load Test — 2026-05-24_19-34-06</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 24px; background: #f5f5f5; color: #333; }
+    h1, h2 { margin: 0 0 12px; }
+    .chart-box { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    table { border-collapse: collapse; background: white; margin-top: 12px; width: 100%; }
+    th, td { padding: 8px 14px; border: 1px solid #ddd; text-align: right; font-size: 13px; }
+    th { background: #eee; }
+    .meta { color: #666; font-size: 13px; margin-bottom: 24px; }
+    .stages { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stage { background: #1976d2; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<h1>Load Test Report</h1>
+<div class="meta">Generated: 25/5/2026, 1:04:06 am &nbsp;·&nbsp; File: stress-2026-05-24_19-34-06</div>
+
+<div class="stages">
+  <span class="stage">50 VUs</span><span class="stage">100 VUs</span><span class="stage">200 VUs</span><span class="stage">500 VUs</span><span class="stage">1000 VUs</span><span class="stage">1500 VUs</span><span class="stage">2000 VUs</span><span class="stage">2500 VUs</span><span class="stage">Cooldown VUs</span>
+</div>
+
+<div class="chart-box">
+  <h2>POST /api/shorten — Latency Over Time</h2>
+  <canvas id="shortenChart" height="100"></canvas>
+  <table>
+    <tr><th>Time</th><th>0s</th><th>10s</th><th>20s</th><th>30s</th><th>40s</th><th>50s</th><th>60s</th><th>70s</th><th>80s</th><th>90s</th><th>100s</th><th>110s</th><th>120s</th><th>130s</th><th>140s</th><th>150s</th><th>160s</th><th>170s</th><th>180s</th><th>190s</th><th>200s</th><th>210s</th><th>220s</th><th>230s</th><th>240s</th><th>250s</th><th>260s</th><th>270s</th><th>280s</th><th>290s</th><th>300s</th><th>310s</th><th>320s</th><th>330s</th><th>340s</th><th>350s</th><th>360s</th><th>370s</th><th>380s</th><th>390s</th><th>400s</th><th>410s</th><th>420s</th><th>430s</th><th>440s</th><th>450s</th><th>460s</th></tr>
+    <tr><th>P50</th><td>5</td><td>10</td><td>8</td><td>7</td><td>16</td><td>21</td><td>15</td><td>14</td><td>24</td><td>36</td><td>35</td><td>34</td><td>75</td><td>145</td><td>147</td><td>127</td><td>279</td><td>369</td><td>470</td><td>297</td><td>348</td><td>465</td><td>536</td><td>1437</td><td>886</td><td>671</td><td>661</td><td>658</td><td>905</td><td>929</td><td>704</td><td>912</td><td>1727</td><td>822</td><td>844</td><td>1416</td><td>2346</td><td>2500</td><td>715</td><td>1108</td><td>1747</td><td>3131</td><td>3528</td><td>1151</td><td>2056</td><td>2936</td><td>2518</td></tr>
+    <tr><th>P90</th><td>15</td><td>18</td><td>11</td><td>11</td><td>40</td><td>39</td><td>21</td><td>19</td><td>46</td><td>59</td><td>61</td><td>57</td><td>159</td><td>306</td><td>330</td><td>259</td><td>567</td><td>721</td><td>1101</td><td>579</td><td>731</td><td>972</td><td>1360</td><td>3375</td><td>2719</td><td>904</td><td>1063</td><td>1116</td><td>1472</td><td>2474</td><td>1207</td><td>1440</td><td>2519</td><td>3811</td><td>1358</td><td>2443</td><td>3395</td><td>3994</td><td>1641</td><td>1699</td><td>2466</td><td>3832</td><td>4313</td><td>2964</td><td>2970</td><td>3606</td><td>3036</td></tr>
+    <tr><th>P95</th><td>20</td><td>25</td><td>14</td><td>13</td><td>56</td><td>61</td><td>26</td><td>23</td><td>57</td><td>77</td><td>82</td><td>75</td><td>207</td><td>365</td><td>413</td><td>330</td><td>745</td><td>887</td><td>1348</td><td>829</td><td>934</td><td>1400</td><td>1775</td><td>3732</td><td>2803</td><td>1032</td><td>1218</td><td>1385</td><td>1524</td><td>2972</td><td>1482</td><td>1711</td><td>2719</td><td>3964</td><td>1650</td><td>2988</td><td>3507</td><td>4092</td><td>1939</td><td>1986</td><td>2729</td><td>3876</td><td>4427</td><td>3272</td><td>3094</td><td>3709</td><td>3131</td></tr>
+    <tr><th>P99</th><td>48</td><td>67</td><td>34</td><td>26</td><td>125</td><td>134</td><td>64</td><td>63</td><td>109</td><td>124</td><td>136</td><td>114</td><td>303</td><td>522</td><td>616</td><td>502</td><td>1062</td><td>1395</td><td>1966</td><td>1131</td><td>1584</td><td>1916</td><td>2631</td><td>4834</td><td>2965</td><td>1471</td><td>1904</td><td>2060</td><td>1743</td><td>4167</td><td>2179</td><td>2416</td><td>3456</td><td>4399</td><td>2426</td><td>3493</td><td>4003</td><td>4245</td><td>3790</td><td>2706</td><td>3740</td><td>3999</td><td>4672</td><td>3800</td><td>3963</td><td>4798</td><td>4270</td></tr>
+  </table>
+</div>
+
+<div class="chart-box">
+  <h2>GET /api/redirect — Latency Over Time</h2>
+  <canvas id="redirectChart" height="100"></canvas>
+  <table>
+    <tr><th>Time</th><th>0s</th><th>10s</th><th>20s</th><th>30s</th><th>40s</th><th>50s</th><th>60s</th><th>70s</th><th>80s</th><th>90s</th><th>100s</th><th>110s</th><th>120s</th><th>130s</th><th>140s</th><th>150s</th><th>160s</th><th>170s</th><th>180s</th><th>190s</th><th>200s</th><th>210s</th><th>220s</th><th>230s</th><th>240s</th><th>250s</th><th>260s</th><th>270s</th><th>280s</th><th>290s</th><th>300s</th><th>310s</th><th>320s</th><th>330s</th><th>340s</th><th>350s</th><th>360s</th><th>370s</th><th>380s</th><th>390s</th><th>400s</th><th>410s</th><th>420s</th><th>430s</th><th>440s</th><th>450s</th><th>460s</th></tr>
+    <tr><th>P50</th><td>8</td><td>22</td><td>17</td><td>16</td><td>39</td><td>50</td><td>36</td><td>34</td><td>46</td><td>57</td><td>57</td><td>55</td><td>98</td><td>173</td><td>178</td><td>151</td><td>311</td><td>405</td><td>492</td><td>332</td><td>361</td><td>493</td><td>559</td><td>1423</td><td>856</td><td>666</td><td>678</td><td>668</td><td>911</td><td>1008</td><td>711</td><td>938</td><td>1730</td><td>821</td><td>857</td><td>1433</td><td>2207</td><td>2739</td><td>774</td><td>1126</td><td>1724</td><td>3152</td><td>3525</td><td>1091</td><td>2021</td><td>2869</td><td>1109</td></tr>
+    <tr><th>P90</th><td>29</td><td>37</td><td>24</td><td>24</td><td>92</td><td>93</td><td>52</td><td>47</td><td>77</td><td>87</td><td>91</td><td>86</td><td>198</td><td>331</td><td>369</td><td>305</td><td>622</td><td>754</td><td>1174</td><td>653</td><td>747</td><td>1016</td><td>1332</td><td>3339</td><td>2622</td><td>910</td><td>1072</td><td>1127</td><td>1473</td><td>2519</td><td>1215</td><td>1467</td><td>2513</td><td>3909</td><td>1378</td><td>2463</td><td>3407</td><td>4067</td><td>1641</td><td>1748</td><td>2402</td><td>3836</td><td>4348</td><td>2458</td><td>3079</td><td>3549</td><td>2949</td></tr>
+    <tr><th>P95</th><td>37</td><td>51</td><td>30</td><td>30</td><td>117</td><td>123</td><td>66</td><td>56</td><td>102</td><td>108</td><td>116</td><td>107</td><td>239</td><td>408</td><td>458</td><td>367</td><td>793</td><td>982</td><td>1391</td><td>860</td><td>945</td><td>1446</td><td>1778</td><td>3741</td><td>2759</td><td>1115</td><td>1246</td><td>1388</td><td>1529</td><td>2913</td><td>1453</td><td>1723</td><td>2873</td><td>4044</td><td>1631</td><td>2988</td><td>3528</td><td>4137</td><td>1900</td><td>1977</td><td>2726</td><td>3892</td><td>4478</td><td>3000</td><td>3351</td><td>3724</td><td>3044</td></tr>
+    <tr><th>P99</th><td>87</td><td>113</td><td>64</td><td>56</td><td>184</td><td>345</td><td>125</td><td>116</td><td>171</td><td>155</td><td>196</td><td>164</td><td>332</td><td>541</td><td>666</td><td>550</td><td>1100</td><td>1427</td><td>1957</td><td>1248</td><td>1696</td><td>1949</td><td>2736</td><td>4562</td><td>2930</td><td>1577</td><td>1952</td><td>1952</td><td>1753</td><td>3925</td><td>2125</td><td>2492</td><td>3468</td><td>4509</td><td>2364</td><td>3484</td><td>4012</td><td>4376</td><td>3730</td><td>2766</td><td>3637</td><td>3996</td><td>4657</td><td>3771</td><td>4013</td><td>4760</td><td>3269</td></tr>
+  </table>
+</div>
+
+<div class="chart-box">
+  <h2>Failed Requests Over Time</h2>
+  <canvas id="failureChart" height="100"></canvas>
+  <table>
+    <tr><th>Time</th><th>0s</th><th>10s</th><th>20s</th><th>30s</th><th>40s</th><th>50s</th><th>60s</th><th>70s</th><th>80s</th><th>90s</th><th>100s</th><th>110s</th><th>120s</th><th>130s</th><th>140s</th><th>150s</th><th>160s</th><th>170s</th><th>180s</th><th>190s</th><th>200s</th><th>210s</th><th>220s</th><th>230s</th><th>240s</th><th>250s</th><th>260s</th><th>270s</th><th>280s</th><th>290s</th><th>300s</th><th>310s</th><th>320s</th><th>330s</th><th>340s</th><th>350s</th><th>360s</th><th>370s</th><th>380s</th><th>390s</th><th>400s</th><th>410s</th><th>420s</th><th>430s</th><th>440s</th><th>450s</th><th>460s</th></tr>
+    <tr><th>Total</th><td>22173</td><td>25425</td><td>37504</td><td>38998</td><td>21387</td><td>23095</td><td>37850</td><td>40358</td><td>38077</td><td>40823</td><td>39791</td><td>41683</td><td>35805</td><td>27879</td><td>23104</td><td>31930</td><td>21775</td><td>21619</td><td>14440</td><td>20092</td><td>31253</td><td>23098</td><td>19799</td><td>9267</td><td>5225</td><td>9658</td><td>19527</td><td>25831</td><td>13887</td><td>2997</td><td>25335</td><td>23286</td><td>13546</td><td>9891</td><td>31712</td><td>16046</td><td>7970</td><td>7546</td><td>14660</td><td>29815</td><td>16477</td><td>9741</td><td>7237</td><td>3557</td><td>4406</td><td>8943</td><td>2033</td></tr>
+    <tr><th>Failed</th><td>0</td><td>1</td><td>5</td><td>0</td><td>1</td><td>0</td><td>2</td><td>2</td><td>1</td><td>3</td><td>2</td><td>1</td><td>1</td><td>2</td><td>0</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>2</td><td>2</td><td>0</td><td>0</td><td>2</td><td>0</td><td>0</td><td>4</td><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>1</td><td>2</td><td>3</td><td>0</td></tr>
+    <tr><th>Rate (%)</th><td>0%</td><td>0.0039%</td><td>0.0133%</td><td>0%</td><td>0.0047%</td><td>0%</td><td>0.0053%</td><td>0.005%</td><td>0.0026%</td><td>0.0073%</td><td>0.005%</td><td>0.0024%</td><td>0.0028%</td><td>0.0072%</td><td>0%</td><td>0.0063%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td>0.0032%</td><td>0%</td><td>0%</td><td>0.0108%</td><td>0%</td><td>0%</td><td>0.0051%</td><td>0%</td><td>0%</td><td>0%</td><td>0.0079%</td><td>0.0086%</td><td>0%</td><td>0%</td><td>0.0063%</td><td>0%</td><td>0%</td><td>0.053%</td><td>0.0068%</td><td>0%</td><td>0.0061%</td><td>0.0205%</td><td>0%</td><td>0.0281%</td><td>0.0454%</td><td>0.0335%</td><td>0%</td></tr>
+  </table>
+</div>
+
+<script>
+const commonOptions = {
+  responsive: true,
+  plugins: { legend: { position: 'top' } },
+  scales: {
+    x: { title: { display: true, text: 'Time (seconds)' } },
+    y: { title: { display: true, text: 'Latency (ms)' }, beginAtZero: true }
+  }
+};
+
+new Chart(document.getElementById('shortenChart'), {
+  type: 'line',
+  data: {
+    labels: ["0s","10s","20s","30s","40s","50s","60s","70s","80s","90s","100s","110s","120s","130s","140s","150s","160s","170s","180s","190s","200s","210s","220s","230s","240s","250s","260s","270s","280s","290s","300s","310s","320s","330s","340s","350s","360s","370s","380s","390s","400s","410s","420s","430s","440s","450s","460s"],
+    datasets: [
+      { label: 'P50', data: [5,10,8,7,16,21,15,14,24,36,35,34,75,145,147,127,279,369,470,297,348,465,536,1437,886,671,661,658,905,929,704,912,1727,822,844,1416,2346,2500,715,1108,1747,3131,3528,1151,2056,2936,2518], borderColor: '#4CAF50', tension: 0.3, fill: false },
+      { label: 'P90', data: [15,18,11,11,40,39,21,19,46,59,61,57,159,306,330,259,567,721,1101,579,731,972,1360,3375,2719,904,1063,1116,1472,2474,1207,1440,2519,3811,1358,2443,3395,3994,1641,1699,2466,3832,4313,2964,2970,3606,3036], borderColor: '#2196F3', tension: 0.3, fill: false },
+      { label: 'P95', data: [20,25,14,13,56,61,26,23,57,77,82,75,207,365,413,330,745,887,1348,829,934,1400,1775,3732,2803,1032,1218,1385,1524,2972,1482,1711,2719,3964,1650,2988,3507,4092,1939,1986,2729,3876,4427,3272,3094,3709,3131], borderColor: '#FF9800', tension: 0.3, fill: false },
+      { label: 'P99', data: [48,67,34,26,125,134,64,63,109,124,136,114,303,522,616,502,1062,1395,1966,1131,1584,1916,2631,4834,2965,1471,1904,2060,1743,4167,2179,2416,3456,4399,2426,3493,4003,4245,3790,2706,3740,3999,4672,3800,3963,4798,4270], borderColor: '#F44336', tension: 0.3, fill: false },
+    ]
+  },
+  options: commonOptions
+});
+
+new Chart(document.getElementById('redirectChart'), {
+  type: 'line',
+  data: {
+    labels: ["0s","10s","20s","30s","40s","50s","60s","70s","80s","90s","100s","110s","120s","130s","140s","150s","160s","170s","180s","190s","200s","210s","220s","230s","240s","250s","260s","270s","280s","290s","300s","310s","320s","330s","340s","350s","360s","370s","380s","390s","400s","410s","420s","430s","440s","450s","460s"],
+    datasets: [
+      { label: 'P50', data: [8,22,17,16,39,50,36,34,46,57,57,55,98,173,178,151,311,405,492,332,361,493,559,1423,856,666,678,668,911,1008,711,938,1730,821,857,1433,2207,2739,774,1126,1724,3152,3525,1091,2021,2869,1109], borderColor: '#4CAF50', tension: 0.3, fill: false },
+      { label: 'P90', data: [29,37,24,24,92,93,52,47,77,87,91,86,198,331,369,305,622,754,1174,653,747,1016,1332,3339,2622,910,1072,1127,1473,2519,1215,1467,2513,3909,1378,2463,3407,4067,1641,1748,2402,3836,4348,2458,3079,3549,2949], borderColor: '#2196F3', tension: 0.3, fill: false },
+      { label: 'P95', data: [37,51,30,30,117,123,66,56,102,108,116,107,239,408,458,367,793,982,1391,860,945,1446,1778,3741,2759,1115,1246,1388,1529,2913,1453,1723,2873,4044,1631,2988,3528,4137,1900,1977,2726,3892,4478,3000,3351,3724,3044], borderColor: '#FF9800', tension: 0.3, fill: false },
+      { label: 'P99', data: [87,113,64,56,184,345,125,116,171,155,196,164,332,541,666,550,1100,1427,1957,1248,1696,1949,2736,4562,2930,1577,1952,1952,1753,3925,2125,2492,3468,4509,2364,3484,4012,4376,3730,2766,3637,3996,4657,3771,4013,4760,3269], borderColor: '#F44336', tension: 0.3, fill: false },
+    ]
+  },
+  options: commonOptions
+});
+
+new Chart(document.getElementById('failureChart'), {
+  type: 'line',
+  data: {
+    labels: ["0s","10s","20s","30s","40s","50s","60s","70s","80s","90s","100s","110s","120s","130s","140s","150s","160s","170s","180s","190s","200s","210s","220s","230s","240s","250s","260s","270s","280s","290s","300s","310s","320s","330s","340s","350s","360s","370s","380s","390s","400s","410s","420s","430s","440s","450s","460s"],
+    datasets: [
+      {
+        label: 'Failure Rate (%)',
+        data: [0,0.0039,0.0133,0,0.0047,0,0.0053,0.005,0.0026,0.0073,0.005,0.0024,0.0028,0.0072,0,0.0063,0,0,0,0,0.0032,0,0,0.0108,0,0,0.0051,0,0,0,0.0079,0.0086,0,0,0.0063,0,0,0.053,0.0068,0,0.0061,0.0205,0,0.0281,0.0454,0.0335,0],
+        borderColor: '#F44336',
+        backgroundColor: 'rgba(244, 67, 54, 0.15)',
+        tension: 0.3,
+        fill: true,
+        yAxisID: 'y',
+      },
+      {
+        label: 'Failed Request Count',
+        data: [0,1,5,0,1,0,2,2,1,3,2,1,1,2,0,2,0,0,0,0,1,0,0,1,0,0,1,0,0,0,2,2,0,0,2,0,0,4,1,0,1,2,0,1,2,3,0],
+        borderColor: '#9C27B0',
+        backgroundColor: 'rgba(156, 39, 176, 0.1)',
+        tension: 0.3,
+        fill: false,
+        yAxisID: 'y1',
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { title: { display: true, text: 'Time (seconds)' } },
+      y: {
+        type: 'linear',
+        position: 'left',
+        title: { display: true, text: 'Failure Rate (%)' },
+        beginAtZero: true,
+        ticks: { callback: (v) => v.toFixed(3) + '%' }
+      },
+      y1: {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: 'Failed Count' },
+        beginAtZero: true,
+        grid: { drawOnChartArea: false },
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>
