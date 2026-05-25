@@ -8,4 +8,6 @@ import com.urlshortener.url_shortener.entity.UrlShortener;
 
 public interface UrlShortenerRepository extends JpaRepository<UrlShortener, Integer> {
     Optional<UrlShortener> findByShortCode(String shortCode);
+    Optional<UrlShortener> findByOriginalUrl(String originalUrl);
+    long countByOriginalUrl(String originalUrl);
 }

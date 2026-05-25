@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.service.UrlShortenerService;
+import com.urlshortener.url_shortener.service.UrlShortenerService.ShortenResult;
 
 @RestController
 @RequestMapping("/api")
@@ -25,8 +26,9 @@ public class UrlShortenerController {
 
     @PostMapping("/shorten")
     public ResponseEntity<UrlShortener> shorten(@RequestBody ShortenRequest request) {
-        UrlShortener saved = service.shorten(request.originalUrl);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        ShortenResult result = service.shorten(request.originalUrl);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.mapping());
     }
 
     @GetMapping("/redirect")
