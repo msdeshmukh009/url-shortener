@@ -1,0 +1,11 @@
+target/
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.md
+docs/
+k6/
+README.md
+HELP.md
