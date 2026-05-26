@@ -3,6 +3,7 @@ package com.urlshortener.url_shortener.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 
 import com.urlshortener.url_shortener.entity.UrlShortener;
 
@@ -10,4 +11,7 @@ public interface UrlShortenerRepository extends JpaRepository<UrlShortener, Inte
     Optional<UrlShortener> findByShortCode(String shortCode);
     Optional<UrlShortener> findByOriginalUrl(String originalUrl);
     long countByOriginalUrl(String originalUrl);
+
+    @Modifying  
+    long deleteByShortCode(String shortCode);
 }

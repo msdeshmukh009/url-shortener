@@ -1,10 +1,11 @@
 package com.urlshortener.url_shortener.controller;
 
 import java.net.URI;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +40,17 @@ public class UrlShortenerController {
                 .build();
     }
 
+    @DeleteMapping("/urls/{shortCode}")
+    public ResponseEntity<Void> delete(@PathVariable String shortCode){
+        service.deleteShortCode(shortCode);
+        return ResponseEntity.noContent().build();
+    }
+
     public record ShortenRequest(String originalUrl) {
     }
+
+    public record DeleteRequest(String shortCode){
+    }
+
+    public record MessageResponse(String message) {}
 }

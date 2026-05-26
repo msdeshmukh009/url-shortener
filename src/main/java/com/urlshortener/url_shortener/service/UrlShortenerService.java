@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.entity.UrlShortener;
+import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 
 import jakarta.transaction.Transactional;
@@ -48,11 +49,19 @@ public class UrlShortenerService {
     @Transactional
     public String resolve(String shortCode) {
         UrlShortener mapping = repository.findByShortCode(shortCode)
-                .orElseThrow(() -> new RuntimeException("Short code not found" + shortCode));
-        System.out.println("visit count: " + mapping.getVisitCount());
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
         mapping.setVisitCount(mapping.getVisitCount() + 1);
         repository.save(mapping);
         return mapping.getOriginalUrl();
+    }
+
+    @Transactional
+    public void deleteShortCode(String shortCode) {
+        long deletedRecord = repository.deleteByShortCode(shortCode);
+        if(deletedRecord == 0){
+            throw new ShortCodeNotFoundException(shortCode);
+        }
     }
 
     private String generateUniqueCode() {
