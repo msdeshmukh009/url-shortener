@@ -143,9 +143,7 @@ Press `Ctrl + C` in the terminal where the app is running.
 
 ---
 
-## Load Testing
-
-The project includes a k6-based load testing setup that ramps concurrent users from 50 → 2500 and measures latency percentiles (P50, P90, P95, P99) and failure rates.
+## Quick Load Test (10 Simultaneous Requests)
 
 ### Prerequisites
 
@@ -162,6 +160,45 @@ Verify installation:
 k6 version
 node --version
 ```
+
+A minimal test that fires **10 simultaneous requests** to both endpoints and reports the latency percentiles.
+
+Run it with:
+
+```bash
+cd k6
+npm run quick
+```
+
+### Results
+
+#### POST /api/shorten
+
+| Metric | Value |
+|---|---|
+| min | 52.89 ms |
+| avg | 53.32 ms |
+| P50 (median) | 53.43 ms |
+| P90 | 53.43 ms |
+| P95 | 53.43 ms |
+| P99 | 53.43 ms |
+| max | 53.43 ms |
+
+#### GET /api/redirect
+
+| Metric | Value |
+|---|---|
+| min | 7.30 ms |
+| avg | 7.82 ms |
+| P50 (median) | 7.81 ms |
+| P90 | 8.38 ms |
+| P95 | 8.38 ms |
+| P99 | 8.38 ms |
+| max | 8.38 ms |
+
+## Stress Testing
+
+The project includes a k6-based load testing setup that ramps concurrent users from 50 → 4000 and measures latency percentiles (P50, P90, P95, P99) and failure rates.
 
 ### Tune Spring Boot for stress testing
 
@@ -227,7 +264,7 @@ The HTML report contains three line charts:
 
 Shows P50, P90, P95, and P99 response times in milliseconds for the create endpoint.
 
-![POST /api/shorten latency graph](docs/images/shorten-latency.jpg)
+![POST /api/shorten latency graph](docs/images/shorten-latency.png)
 
 **What to look for:**
 - Flat lines at low VUs = system is healthy
@@ -243,7 +280,7 @@ Same percentiles but for the redirect endpoint. Usually faster than shorten sinc
 
 Shows both failure **rate (%)** on the left Y-axis and raw **failure count** on the right Y-axis. The dual-axis lets you see tiny failure rates that would otherwise appear flat at 0%.
 
-![Failure rate graph](docs/images/failure-rate.jpg)
+![Failure rate graph](docs/images/failure-rate.png)
 
 **What to look for:**
 - Stays at 0% as long as the system can handle the load

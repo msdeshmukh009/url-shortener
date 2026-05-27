@@ -1,6 +1,8 @@
 package com.urlshortener.url_shortener.controller;
 
 import java.net.URI;
+
+import org.hibernate.validator.constraints.URL;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,6 +18,10 @@ import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.service.UrlShortenerService;
 import com.urlshortener.url_shortener.service.UrlShortenerService.ShortenResult;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 @RestController
 @RequestMapping("/api")
 public class UrlShortenerController {
@@ -26,7 +32,7 @@ public class UrlShortenerController {
     }
 
     @PostMapping("/shorten")
-    public ResponseEntity<UrlShortener> shorten(@RequestBody ShortenRequest request) {
+    public ResponseEntity<UrlShortener> shorten(@Valid @RequestBody ShortenRequest request) {
         ShortenResult result = service.shorten(request.originalUrl);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(result.mapping());
@@ -46,7 +52,10 @@ public class UrlShortenerController {
         return ResponseEntity.noContent().build();
     }
 
-    public record ShortenRequest(String originalUrl) {
+    public record ShortenRequest(
+        @NotBlank @URL @Size(max = 2048) 
+        String originalUrl
+    ) {
     }
 
     public record DeleteRequest(String shortCode){

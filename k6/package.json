@@ -4,7 +4,8 @@
   "description": "",
   "main": "run-test.js",
   "scripts": {
-     "stress": "node scripts/run-test.js"
+     "stress": "node scripts/run-test.js",
+     "quick": "k6 run scripts/quick-test.js"
   },
   "author": "Mahesh",
   "license": "ISC"
