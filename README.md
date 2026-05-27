@@ -264,7 +264,7 @@ The HTML report contains three line charts:
 
 Shows P50, P90, P95, and P99 response times in milliseconds for the create endpoint.
 
-![POST /api/shorten latency graph](docs/images/shorten-latency.png)
+![POST /api/shorten latency graph](docs/images/shorten-latency.jpg)
 
 **What to look for:**
 - Flat lines at low VUs = system is healthy
@@ -280,7 +280,7 @@ Same percentiles but for the redirect endpoint. Usually faster than shorten sinc
 
 Shows both failure **rate (%)** on the left Y-axis and raw **failure count** on the right Y-axis. The dual-axis lets you see tiny failure rates that would otherwise appear flat at 0%.
 
-![Failure rate graph](docs/images/failure-rate.png)
+![Failure rate graph](docs/images/failure-rate.jpg)
 
 **What to look for:**
 - Stays at 0% as long as the system can handle the load
