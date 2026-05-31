@@ -28,6 +28,9 @@ public class UrlShortener {
     @Column(name = "visit_count")
     private Integer visitCount;
 
+    @Column(name = "last_accessed_at")
+    private LocalDateTime lastAccessedAt;
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();

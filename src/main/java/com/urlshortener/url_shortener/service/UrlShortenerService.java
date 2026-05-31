@@ -1,5 +1,6 @@
 package com.urlshortener.url_shortener.service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +53,7 @@ public class UrlShortenerService {
                 .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
 
         mapping.setVisitCount(mapping.getVisitCount() + 1);
+        mapping.setLastAccessedAt(LocalDateTime.now());
         repository.save(mapping);
         return mapping.getOriginalUrl();
     }
