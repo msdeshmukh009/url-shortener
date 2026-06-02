@@ -3,10 +3,11 @@ package com.urlshortener.url_shortener.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.entity.UrlShortener;
+import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.exception.ForbiddenException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 
@@ -20,21 +21,18 @@ public class UrlShortenerService {
         this.repository = repository;
     }
 
-    public record ShortenResult(UrlShortener mapping, boolean created) {}
+    public record ShortenResult(UrlShortener mapping) {
+    }
 
-    public ShortenResult shorten(String originalUrl) {
+    public ShortenResult shorten(String originalUrl, User user) {
         String normalized = normalizeUrl(originalUrl);
-        try {
-            String shortCode = generateUniqueCode();
-            UrlShortener mapping = UrlShortener.builder()
-                    .originalUrl(normalized)
-                    .shortCode(shortCode).build();
-            return new ShortenResult(repository.save(mapping), true);
-        } catch (DataIntegrityViolationException e) {
-            UrlShortener  original = repository.findByOriginalUrl(normalized)
-                    .orElseThrow(() -> new RuntimeException("Failed to shorten the url"));
-            return new ShortenResult(original, false);
-        }
+        String shortCode = generateUniqueCode();
+        UrlShortener mapping = UrlShortener.builder()
+                .originalUrl(normalized)
+                .shortCode(shortCode)
+                .user(user)
+                .build();
+        return new ShortenResult(repository.save(mapping));
     }
 
     private String normalizeUrl(String url) {
@@ -43,7 +41,7 @@ public class UrlShortenerService {
 
     @Transactional
     public String resolve(String shortCode) {
-        UrlShortener mapping = repository.findByShortCode(shortCode)
+        UrlShortener mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
                 .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
 
         mapping.setVisitCount(mapping.getVisitCount() + 1);
@@ -53,11 +51,21 @@ public class UrlShortenerService {
     }
 
     @Transactional
-    public void deleteShortCode(String shortCode) {
-        long deletedRecord = repository.deleteByShortCode(shortCode);
-        if(deletedRecord == 0){
+    public void deleteShortCode(String shortCode, Integer userId) {
+        UrlShortener mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
+        if (!userId.equals(mapping.getUser().getId())) {
+            throw new ForbiddenException("You don't own this short code");
+        }
+
+        if (Boolean.TRUE.equals(mapping.getIsDeleted())) {
             throw new ShortCodeNotFoundException(shortCode);
         }
+
+        mapping.setIsDeleted(true);
+        mapping.setDeletedAt(LocalDateTime.now());
+        repository.save(mapping);
     }
 
     private String generateUniqueCode() {

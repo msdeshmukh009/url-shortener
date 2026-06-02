@@ -31,9 +31,22 @@ public class UrlShortener {
     @Column(name = "last_accessed_at")
     private LocalDateTime lastAccessedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.visitCount = 0;
+        if (this.isDeleted == null) {
+            this.isDeleted = false;
+        }
     }
 }
