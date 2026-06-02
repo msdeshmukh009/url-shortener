@@ -1,7 +1,6 @@
 package com.urlshortener.url_shortener.service;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,11 +25,6 @@ public class UrlShortenerService {
     public ShortenResult shorten(String originalUrl) {
         String normalized = normalizeUrl(originalUrl);
         try {
-            Optional<UrlShortener> preExistingMapping = repository.findByOriginalUrl(normalized);
-            if (preExistingMapping.isPresent()) {
-                return new ShortenResult(preExistingMapping.get(), false);
-            }
-
             String shortCode = generateUniqueCode();
             UrlShortener mapping = UrlShortener.builder()
                     .originalUrl(normalized)
