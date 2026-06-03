@@ -1,5 +1,6 @@
 package com.urlshortener.url_shortener.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
@@ -40,6 +41,9 @@ public class UrlShortener {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 
     @PrePersist
     void prePersist() {

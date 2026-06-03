@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -81,6 +82,57 @@ public class GlobalExceptionHandler {
                                 "error", "Forbidden",
                                 "message", ex.getMessage());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        }
+
+        @ExceptionHandler(UrlExpiredException.class)
+        public ResponseEntity<Map<String, Object>> handleExpired(UrlExpiredException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", HttpStatus.GONE,
+                                "error", "GONE",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.GONE).body(body);
+        }
+
+        private String extractCleanMessage(HttpMessageNotReadableException ex) {
+                Throwable cause = ex.getCause();
+
+                while (cause != null) {
+                        if (cause instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException ife) {
+                                String field = ife.getPath().stream()
+                                                .map(ref -> ref.getFieldName())
+                                                .filter(java.util.Objects::nonNull)
+                                                .collect(java.util.stream.Collectors.joining("."));
+                                return "Invalid format for field '" + field
+                                                + "': value '" + ife.getValue()
+                                                + "'. Expected ISO-8601 timestamp with timezone (e.g., 2026-06-10T09:30:00Z)";
+                        }
+
+                        if (cause instanceof java.time.format.DateTimeParseException dtpe) {
+                                return "Invalid or old timestamp: '" + dtpe.getParsedString()
+                                                + "'. Expected ISO-8601 with timezone (e.g., 2026-06-10T09:30:00Z)";
+                        }
+
+                        if (cause instanceof com.fasterxml.jackson.core.JsonParseException) {
+                                return "Malformed JSON in request body";
+                        }
+
+                        cause = cause.getCause();
+                }
+
+                return "Request body is missing or malformed";
+        }
+
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
+                String message = extractCleanMessage(ex);
+
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", HttpStatus.BAD_REQUEST,
+                                "error", "Bad Request",
+                                "message", message);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
         }
 
         @ExceptionHandler(Exception.class)

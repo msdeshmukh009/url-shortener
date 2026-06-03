@@ -1,5 +1,6 @@
 package com.urlshortener.url_shortener.service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -9,6 +10,7 @@ import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
 import com.urlshortener.url_shortener.exception.ForbiddenException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
+import com.urlshortener.url_shortener.exception.UrlExpiredException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 
 import jakarta.transaction.Transactional;
@@ -24,13 +26,14 @@ public class UrlShortenerService {
     public record ShortenResult(UrlShortener mapping) {
     }
 
-    public ShortenResult shorten(String originalUrl, User user) {
+    public ShortenResult shorten(String originalUrl, User user, Instant expiresAt) {
         String normalized = normalizeUrl(originalUrl);
         String shortCode = generateUniqueCode();
         UrlShortener mapping = UrlShortener.builder()
                 .originalUrl(normalized)
                 .shortCode(shortCode)
                 .user(user)
+                .expiresAt(expiresAt)
                 .build();
         return new ShortenResult(repository.save(mapping));
     }
@@ -43,6 +46,10 @@ public class UrlShortenerService {
     public String resolve(String shortCode) {
         UrlShortener mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
                 .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
+        if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(Instant.now())) {
+            throw new UrlExpiredException(shortCode);
+        }
 
         mapping.setVisitCount(mapping.getVisitCount() + 1);
         mapping.setLastAccessedAt(LocalDateTime.now());

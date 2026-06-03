@@ -1,6 +1,7 @@
 package com.urlshortener.url_shortener.controller;
 
 import java.net.URI;
+import java.time.Instant;
 
 import org.hibernate.validator.constraints.URL;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import com.urlshortener.url_shortener.service.UserService;
 import com.urlshortener.url_shortener.service.UrlShortenerService.ShortenResult;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -43,7 +45,7 @@ public class UrlShortenerController {
     public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
         User user = userService.findByApiKey(apiKey);
-        ShortenResult result = service.shorten(request.originalUrl(), user);
+        ShortenResult result = service.shorten(request.originalUrl(), user, request.expiresAt);
         return ResponseEntity.status(HttpStatus.CREATED).body(ShortenResponse.from(result.mapping()));
     }
 
@@ -64,7 +66,8 @@ public class UrlShortenerController {
     }
 
     public record ShortenRequest(
-            @NotBlank @URL @Size(max = 2048) String originalUrl) {
+            @NotBlank @URL @Size(max = 2048) String originalUrl,
+            @Future(message = "Expiry must be in the future") Instant expiresAt) {
     }
 
     public record DeleteRequest(String shortCode) {
