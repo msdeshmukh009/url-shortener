@@ -4,12 +4,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
 import com.urlshortener.url_shortener.exception.ForbiddenException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
+import com.urlshortener.url_shortener.exception.ShortCodeTakenException;
 import com.urlshortener.url_shortener.exception.UrlExpiredException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 
@@ -26,16 +28,31 @@ public class UrlShortenerService {
     public record ShortenResult(UrlShortener mapping) {
     }
 
-    public ShortenResult shorten(String originalUrl, User user, Instant expiresAt) {
+    private String resolveShortCode(String providedShortCode) {
+        if (providedShortCode != null) {
+            if (repository.findByShortCode(providedShortCode).isPresent()) {
+                throw new ShortCodeTakenException(providedShortCode);
+            }
+            return providedShortCode;
+        }
+
+        return generateUniqueCode();
+    }
+
+    public ShortenResult shorten(String originalUrl, User user, Instant expiresAt, String providedShortCode) {
+        String shortCode = resolveShortCode(providedShortCode);
         String normalized = normalizeUrl(originalUrl);
-        String shortCode = generateUniqueCode();
         UrlShortener mapping = UrlShortener.builder()
                 .originalUrl(normalized)
                 .shortCode(shortCode)
                 .user(user)
                 .expiresAt(expiresAt)
                 .build();
-        return new ShortenResult(repository.save(mapping));
+        try {
+            return new ShortenResult(repository.save(mapping));
+        } catch (DataIntegrityViolationException e) {
+            throw new ShortCodeTakenException(shortCode);
+        }
     }
 
     private String normalizeUrl(String url) {
@@ -55,6 +72,10 @@ public class UrlShortenerService {
         mapping.setLastAccessedAt(LocalDateTime.now());
         repository.save(mapping);
         return mapping.getOriginalUrl();
+    }
+
+    public UrlShortener findByShortCode(String shortCode) {
+        return repository.findByShortCode(shortCode).orElse(null);
     }
 
     @Transactional

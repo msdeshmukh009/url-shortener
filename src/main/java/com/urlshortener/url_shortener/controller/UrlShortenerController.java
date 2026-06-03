@@ -27,6 +27,7 @@ import com.urlshortener.url_shortener.service.UrlShortenerService.ShortenResult;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @RestController
@@ -45,12 +46,20 @@ public class UrlShortenerController {
     public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
         User user = userService.findByApiKey(apiKey);
-        ShortenResult result = service.shorten(request.originalUrl(), user, request.expiresAt);
+        ShortenResult result = service.shorten(request.originalUrl(), user, request.expiresAt, request.shortCode);
         return ResponseEntity.status(HttpStatus.CREATED).body(ShortenResponse.from(result.mapping()));
     }
 
     @GetMapping("/redirect")
     public ResponseEntity<UrlShortener> redirect(@RequestParam String shortCode) {
+        String originalUrl = service.resolve(shortCode);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(originalUrl))
+                .build();
+    }
+
+    @GetMapping("/r/{shortCode}")
+    public ResponseEntity<Void> redirectCustom(@PathVariable String shortCode) {
         String originalUrl = service.resolve(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(originalUrl))
@@ -67,7 +76,8 @@ public class UrlShortenerController {
 
     public record ShortenRequest(
             @NotBlank @URL @Size(max = 2048) String originalUrl,
-            @Future(message = "Expiry must be in the future") Instant expiresAt) {
+            @Future(message = "Expiry must be in the future") Instant expiresAt,
+            @Size(min = 3, max = 50, message = "Short code must be 3-50 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Short code can only contain letters, numbers, hyphens, and underscores") String shortCode) {
     }
 
     public record DeleteRequest(String shortCode) {

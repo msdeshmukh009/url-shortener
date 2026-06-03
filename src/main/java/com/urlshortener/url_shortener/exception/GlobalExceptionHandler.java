@@ -94,6 +94,16 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.GONE).body(body);
         }
 
+        @ExceptionHandler(ShortCodeTakenException.class)
+        public ResponseEntity<Map<String, Object>> handleShortCodeTaken(ShortCodeTakenException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", HttpStatus.CONFLICT,
+                                "error", "CONFLICT",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+        }
+
         private String extractCleanMessage(HttpMessageNotReadableException ex) {
                 Throwable cause = ex.getCause();
 
