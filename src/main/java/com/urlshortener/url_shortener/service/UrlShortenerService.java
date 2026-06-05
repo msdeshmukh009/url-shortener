@@ -2,11 +2,16 @@ package com.urlshortener.url_shortener.service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import com.urlshortener.url_shortener.controller.UrlShortenerController.ShortenRequest;
+import com.urlshortener.url_shortener.dto.BulkShortenResponse;
+import com.urlshortener.url_shortener.dto.UnitShortenResponse;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
 import com.urlshortener.url_shortener.exception.ForbiddenException;
@@ -53,6 +58,28 @@ public class UrlShortenerService {
         } catch (DataIntegrityViolationException e) {
             throw new ShortCodeTakenException(shortCode);
         }
+    }
+
+    public BulkShortenResponse bulkShorten(User user, List<ShortenRequest> urls) {
+        List<UnitShortenResponse> unitResponses = new ArrayList<>();
+
+        for (int i = 0; i < urls.size(); i++) {
+            ShortenRequest shortenRequest = urls.get(i);
+            try {
+                ShortenResult result = shorten(shortenRequest.originalUrl(), user, shortenRequest.expiresAt(),
+                        shortenRequest.shortCode());
+
+                unitResponses.add(UnitShortenResponse.success(i, result.mapping));
+            } catch (ShortCodeTakenException e) {
+                unitResponses.add(UnitShortenResponse.failure(i,
+                        shortenRequest.originalUrl(), "Short code already taken"));
+            } catch (Exception e) {
+                unitResponses.add(UnitShortenResponse.failure(i,
+                        shortenRequest.originalUrl(), "Internal error processing this URL"));
+            }
+        }
+
+        return BulkShortenResponse.from(unitResponses);
     }
 
     private String normalizeUrl(String url) {
