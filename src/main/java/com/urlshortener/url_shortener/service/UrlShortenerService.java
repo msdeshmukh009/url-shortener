@@ -61,10 +61,26 @@ public class UrlShortenerService {
         }
     }
 
+    @Transactional
+    public ShortenResult edit(User user, Instant expiresAt, String shortCode) {
+        UrlShortener mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        if (!mapping.getUser().equals(user)) {
+            throw new ForbiddenException("You don't own this short code");
+        }
+
+        if (expiresAt != null) {
+            mapping.setExpiresAt(expiresAt);
+        }
+
+        return new ShortenResult(repository.save(mapping));
+
+    }
+
     public BulkShortenResponse bulkShorten(User user, List<ShortenRequest> urls) {
         List<UnitShortenResponse> unitResponses = new ArrayList<>();
 
-        if(!user.getTier().isCanUseBulkCreation()){
+        if (!user.getTier().isCanUseBulkCreation()) {
             throw new TierRestrictedException();
         }
 

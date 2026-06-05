@@ -5,11 +5,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.urlshortener.url_shortener.entity.Tier;
-import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
 import com.urlshortener.url_shortener.enums.TierType;
 import com.urlshortener.url_shortener.repository.TierRepository;
-import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 import com.urlshortener.url_shortener.repository.UserRepository;
 
 import tools.jackson.databind.ObjectMapper;
@@ -17,10 +15,11 @@ import org.springframework.http.MediaType;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,17 +27,13 @@ import org.junit.jupiter.api.Test;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class DeleteEndpointIntegrationTest {
-
+public class EditShortCodeIntegrationTest {
     @Autowired
     MockMvc mockMvc;
 
     @Autowired
     ObjectMapper objectMapper;
 
-    @Autowired
-    UrlShortenerRepository urlRepository;
-    
     @Autowired
     UserRepository userRepository;
 
@@ -50,7 +45,7 @@ public class DeleteEndpointIntegrationTest {
 
     @BeforeEach
     void setup() {
-             Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
+        Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
                 .orElseGet(
                         () -> tierRepository.save(
                                 Tier.builder()
@@ -90,35 +85,56 @@ public class DeleteEndpointIntegrationTest {
     }
 
     @Test
-    void shouldAllowOwnerToDelete() throws Exception {
+    void shouldAllowOwnerToEdit() throws Exception {
         String shortCode = createShortCode(userA);
+        Instant pastExpiry = Instant.now().minus(7, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
 
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userA.getApiKey()))
-                .andExpect(status().isNoContent());
+        String body = """
+                { "expiresAt": "%s" }
+                """.formatted(pastExpiry);
 
-        UrlShortener row = urlRepository.findByShortCode(shortCode).orElseThrow();
-        assertThat(row.getIsDeleted()).isTrue();
-        assertThat(row.getDeletedAt()).isNotNull();
+        mockMvc.perform(patch("/api/shorten/" + shortCode)
+                .header("X-API-Key", userA.getApiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/redirect").param("shortCode", shortCode))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("Short code has expired")));
     }
 
     @Test
-    void shouldReject403WhenNonOwnerTriesToDelete() throws Exception {
-        String shortCode = createShortCode(userA); 
+    void shouldReject403WhenNonOwnerTriesToEdit() throws Exception {
+        String shortCode = createShortCode(userA);
 
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userB.getApiKey()))
+        Instant pastExpiry = Instant.now().minus(7, ChronoUnit.DAYS);
+
+        String body = """
+                { "expiresAt": "%s" }
+                """.formatted(pastExpiry);
+
+        mockMvc.perform(patch("/api/shorten/" + shortCode)
+                .header("X-API-Key", userB.getApiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
                 .andExpect(status().isForbidden());
-
-        UrlShortener row = urlRepository.findByShortCode(shortCode).orElseThrow();
-        assertThat(row.getIsDeleted()).isFalse();
     }
 
     @Test
     void shouldReject400WhenApiKeyMissing() throws Exception {
         String shortCode = createShortCode(userA);
 
-        mockMvc.perform(delete("/api/urls/" + shortCode))
+        Instant pastExpiry = Instant.now().minus(7, ChronoUnit.DAYS);
+
+        String body = """
+                { "expiresAt": "%s" }
+                """.formatted(pastExpiry);
+
+        mockMvc.perform(patch("/api/shorten/" + shortCode)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
                 .andExpect(status().isBadRequest());
     }
 
@@ -126,51 +142,31 @@ public class DeleteEndpointIntegrationTest {
     void shouldReject401WhenApiKeyInvalid() throws Exception {
         String shortCode = createShortCode(userA);
 
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", "definitely-not-a-real-key"))
+        Instant pastExpiry = Instant.now().minus(7, ChronoUnit.DAYS);
+
+        String body = """
+                { "expiresAt": "%s" }
+                """.formatted(pastExpiry);
+
+        mockMvc.perform(patch("/api/shorten/" + shortCode)
+                .header("X-API-Key", "some-random-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void shouldReturn404ForNonExistentShortCode() throws Exception {
-        mockMvc.perform(delete("/api/urls/doesnotexist")
-                .header("X-API-Key", userA.getApiKey()))
+        Instant pastExpiry = Instant.now().minus(7, ChronoUnit.DAYS);
+
+        String body = """
+                { "expiresAt": "%s" }
+                """.formatted(pastExpiry);
+
+        mockMvc.perform(patch("/api/shorten/" + "this-shortcode-is-short")
+                .header("X-API-Key", userA.getApiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
                 .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void shouldReturn404WhenDeletingAlreadyDeletedCode() throws Exception {
-        String shortCode = createShortCode(userA);
-
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userA.getApiKey()))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userA.getApiKey()))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void shouldReturn404WhenResolvingDeletedShortCode() throws Exception {
-        String shortCode = createShortCode(userA);
-
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userA.getApiKey()))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/redirect").param("shortCode", shortCode))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void shouldKeepRowInDatabaseAfterDelete() throws Exception {
-        String shortCode = createShortCode(userA);
-
-        mockMvc.perform(delete("/api/urls/" + shortCode)
-                .header("X-API-Key", userA.getApiKey()))
-                .andExpect(status().isNoContent());
-
-        assertThat(urlRepository.findByShortCode(shortCode)).isPresent();
     }
 }

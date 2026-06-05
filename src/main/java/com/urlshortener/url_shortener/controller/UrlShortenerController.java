@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -93,6 +94,15 @@ public class UrlShortenerController {
         return ResponseEntity.status(status).body(response);
     }
 
+    @PatchMapping("/shorten/{shortCode}")
+    public ResponseEntity<ShortenResponse> edit(@PathVariable String shortCode,
+            @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey,
+            @Valid @RequestBody EditRequest request) {
+        User user = userService.findByApiKey(apiKey);
+        ShortenResult result = service.edit(user, request.expiresAt, shortCode);
+        return ResponseEntity.status(HttpStatus.OK).body(ShortenResponse.from(result.mapping()));
+    }
+
     public record ShortenRequest(
             @NotBlank @URL @Size(max = 2048) String originalUrl,
             @Future(message = "Expiry must be in the future") Instant expiresAt,
@@ -101,6 +111,10 @@ public class UrlShortenerController {
 
     public record BulkShortenRequest(
             @NotEmpty(message = "The URLs list cannot be empty") @Size(max = 100, message = "Cannot process more than 100 URLs in a single request") List<@Valid ShortenRequest> urls) {
+    }
+
+    public record EditRequest(
+            Instant expiresAt) {
     }
 
     public record DeleteRequest(String shortCode) {
