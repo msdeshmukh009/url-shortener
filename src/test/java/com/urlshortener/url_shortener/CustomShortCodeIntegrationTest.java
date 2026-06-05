@@ -5,6 +5,7 @@ import com.urlshortener.url_shortener.repository.*;
 import tools.jackson.databind.ObjectMapper;
 
 import com.urlshortener.url_shortener.entity.*;
+import com.urlshortener.url_shortener.enums.TierType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,13 +40,25 @@ public class CustomShortCodeIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    TierRepository tierRepository;
+
     private User testUser;
 
     @BeforeEach
     void setup() {
+        Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
+                .orElseGet(
+                        () -> tierRepository.save(
+                                Tier.builder()
+                                        .name(TierType.HOBBY)
+                                        .canUseBulkCreation(false)
+                                        .build()));
+                                        
         testUser = userRepository.save(User.builder()
                 .email("test-" + UUID.randomUUID() + "@test.com")
                 .name("User Test")
+                .tier(hobbyTier)
                 .apiKey("apikey-t-" + UUID.randomUUID())
                 .build());
 

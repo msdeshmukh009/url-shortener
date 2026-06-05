@@ -15,7 +15,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import tools.jackson.databind.ObjectMapper;
+
+import com.urlshortener.url_shortener.entity.Tier;
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.enums.TierType;
+import com.urlshortener.url_shortener.repository.TierRepository;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 import com.urlshortener.url_shortener.repository.UserRepository;
 import static org.hamcrest.Matchers.hasSize;
@@ -35,13 +39,42 @@ public class BulkShortenEndpointIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
-    private User testUser;
+    @Autowired
+    TierRepository tierRepository;
+
+    private User tesEnterpriseUser;
+
+    private User testHobbyUser;
 
     @BeforeEach
     void setup() {
-        testUser = userRepository.save(User.builder()
+        Tier enterpriseTier = tierRepository.findByName(TierType.ENTERPRISE)
+                .orElseGet(
+                        () -> tierRepository.save(
+                                Tier.builder()
+                                        .name(TierType.ENTERPRISE)
+                                        .canUseBulkCreation(false)
+                                        .build()));
+
+        Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
+                .orElseGet(
+                        () -> tierRepository.save(
+                                Tier.builder()
+                                        .name(TierType.HOBBY)
+                                        .canUseBulkCreation(false)
+                                        .build()));
+
+        tesEnterpriseUser = userRepository.save(User.builder()
                 .email("bulk-test-" + UUID.randomUUID() + "@test.com")
                 .name("Bulk Test User")
+                .tier(enterpriseTier)
+                .apiKey("bulk-key-" + UUID.randomUUID())
+                .build());
+
+        testHobbyUser = userRepository.save(User.builder()
+                .email("bulk-test-" + UUID.randomUUID() + "@test.com")
+                .name("Bulk Test User")
+                .tier(hobbyTier)
                 .apiKey("bulk-key-" + UUID.randomUUID())
                 .build());
     }
@@ -58,6 +91,24 @@ public class BulkShortenEndpointIntegrationTest {
     }
 
     @Test
+    void shouldReturn403WhenHobbyUserTriesBulkShorten() throws Exception {
+        String body = buildBulkRequest(
+                "https://example.com/" + UUID.randomUUID(),
+                "https://another.com/" + UUID.randomUUID(),
+                "https://third.com/" + UUID.randomUUID());
+
+        mockMvc.perform(
+                post("/api/shorten/bulk")
+                        .header("X-API-Key", testHobbyUser.getApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("403 FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("This endpoint requires the ENTERPRISE tier")));
+    }
+
+    @Test
     void shouldReturn201WhenAllUrlsSucceed() throws Exception {
         String body = buildBulkRequest(
                 "https://example.com/" + UUID.randomUUID(),
@@ -66,7 +117,7 @@ public class BulkShortenEndpointIntegrationTest {
 
         mockMvc.perform(
                 post("/api/shorten/bulk")
-                        .header("X-API-Key", testUser.getApiKey())
+                        .header("X-API-Key", tesEnterpriseUser.getApiKey())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -86,7 +137,7 @@ public class BulkShortenEndpointIntegrationTest {
                 "https://saved.com/" + UUID.randomUUID());
 
         var result = mockMvc.perform(post("/api/shorten/bulk")
-                .header("X-API-Key", testUser.getApiKey())
+                .header("X-API-Key", tesEnterpriseUser.getApiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
                 .andExpect(status().isCreated())
@@ -110,7 +161,7 @@ public class BulkShortenEndpointIntegrationTest {
                 }
                 """.formatted(takenCode);
         mockMvc.perform(post("/api/shorten")
-                .header("X-API-Key", testUser.getApiKey())
+                .header("X-API-Key", tesEnterpriseUser.getApiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(firstBody))
                 .andExpect(status().isCreated());
@@ -126,7 +177,7 @@ public class BulkShortenEndpointIntegrationTest {
                 """.formatted(UUID.randomUUID(), takenCode, UUID.randomUUID());
 
         mockMvc.perform(post("/api/shorten/bulk")
-                .header("X-API-Key", testUser.getApiKey())
+                .header("X-API-Key", tesEnterpriseUser.getApiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(bulkBody))
                 .andExpect(status().isMultiStatus()) // 207
@@ -150,7 +201,7 @@ public class BulkShortenEndpointIntegrationTest {
         sb.append("] }");
 
         mockMvc.perform(post("/api/shorten/bulk")
-                .header("X-API-Key", testUser.getApiKey())
+                .header("X-API-Key", tesEnterpriseUser.getApiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(sb.toString()))
                 .andExpect(status().isBadRequest());
@@ -169,7 +220,7 @@ public class BulkShortenEndpointIntegrationTest {
                 """.formatted(UUID.randomUUID(), UUID.randomUUID());
 
         mockMvc.perform(post("/api/shorten/bulk")
-                .header("X-API-Key", testUser.getApiKey())
+                .header("X-API-Key", tesEnterpriseUser.getApiKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
                 .andExpect(status().isBadRequest());

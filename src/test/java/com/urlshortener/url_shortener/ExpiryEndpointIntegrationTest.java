@@ -4,8 +4,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import com.urlshortener.url_shortener.entity.Tier;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.enums.TierType;
+import com.urlshortener.url_shortener.repository.TierRepository;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 import com.urlshortener.url_shortener.repository.UserRepository;
 
@@ -41,13 +44,24 @@ public class ExpiryEndpointIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    TierRepository tierRepository;
+
     private User testUser;
 
     @BeforeEach
     void setup() {
+        Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
+                .orElseGet(
+                        () -> tierRepository.save(
+                                Tier.builder()
+                                        .name(TierType.HOBBY)
+                                        .canUseBulkCreation(false)
+                                        .build()));
         testUser = userRepository.save(User.builder()
                 .email("test-" + UUID.randomUUID() + "@test.com")
                 .name("Test User")
+                .tier(hobbyTier)
                 .apiKey("apikey-" + UUID.randomUUID())
                 .build());
     }

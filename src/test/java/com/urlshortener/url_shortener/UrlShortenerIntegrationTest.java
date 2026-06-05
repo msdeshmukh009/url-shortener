@@ -8,8 +8,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import com.urlshortener.url_shortener.entity.Tier;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.enums.TierType;
+import com.urlshortener.url_shortener.repository.TierRepository;
 import com.urlshortener.url_shortener.repository.UserRepository;
 import com.urlshortener.url_shortener.utils.UrlUtils;
 
@@ -34,13 +37,24 @@ public class UrlShortenerIntegrationTest {
         @Autowired
         UserRepository userRepository;
 
+        @Autowired
+        TierRepository tierRepository;
+
         private User user;
 
         @BeforeEach
         void setup() {
+                Tier hobbyTier = tierRepository.findByName(TierType.HOBBY)
+                                .orElseGet(() -> tierRepository.save(
+                                                Tier.builder()
+                                                .name(TierType.HOBBY)
+                                                .canUseBulkCreation(false)
+                                                .build()));
+                                                
                 user = userRepository.save(User.builder()
                                 .email("a-" + UUID.randomUUID() + "@test.com")
                                 .name("User A")
+                                .tier(hobbyTier)
                                 .apiKey("apikey-A-" + UUID.randomUUID())
                                 .build());
 

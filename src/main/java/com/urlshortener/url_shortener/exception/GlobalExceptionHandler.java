@@ -104,6 +104,16 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
         }
 
+        @ExceptionHandler(TierRestrictedException.class)
+        public ResponseEntity<Map<String, Object>> handleTierRestrictedException(TierRestrictedException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", HttpStatus.FORBIDDEN,
+                                "error", "FORBIDDEN",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        }
+
         private String extractCleanMessage(HttpMessageNotReadableException ex) {
                 Throwable cause = ex.getCause();
 
