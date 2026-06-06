@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Error</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+        }
+        .icon { font-size: 64px; margin-bottom: 24px; }
+        h1 { color: #2d3748; font-size: 28px; margin-bottom: 16px; }
+        p { color: #4a5568; font-size: 16px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔗</div>
+        <h1 th:text="${title}">Something went wrong</h1>
+        <p th:text="${message}">Please try again later.</p>
+    </div>
+</body>
+</html>

@@ -7,14 +7,19 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.controller.UrlShortenerController.ShortenRequest;
 import com.urlshortener.url_shortener.dto.BulkShortenResponse;
+import com.urlshortener.url_shortener.dto.ResolveOutcome;
 import com.urlshortener.url_shortener.dto.UnitShortenResponse;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.enums.OutcomeType;
 import com.urlshortener.url_shortener.exception.ForbiddenException;
+import com.urlshortener.url_shortener.exception.InvalidPasswordException;
+import com.urlshortener.url_shortener.exception.PasswordRequiredException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.exception.ShortCodeTakenException;
 import com.urlshortener.url_shortener.exception.TierRestrictedException;
@@ -27,11 +32,60 @@ import jakarta.transaction.Transactional;
 public class UrlShortenerService {
     private final UrlShortenerRepository repository;
 
-    public UrlShortenerService(UrlShortenerRepository repository) {
+    private final PasswordEncoder passwordEncoder;
+
+    public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public record ShortenResult(UrlShortener mapping) {
+    }
+
+    private UrlShortener loadAndValidate(String shortCode) {
+        UrlShortener mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
+        if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(Instant.now())) {
+            throw new UrlExpiredException(shortCode);
+        }
+
+        return mapping;
+    }
+
+    private void recordVisit(UrlShortener mapping) {
+        mapping.setVisitCount(mapping.getVisitCount() + 1);
+        mapping.setLastAccessedAt(LocalDateTime.now());
+        repository.save(mapping);
+    }
+
+    public ResolveOutcome checkAccess(String shortCode) {
+        UrlShortener mapping = loadAndValidate(shortCode);
+
+        if (mapping.getPasswordHash() == null) {
+            recordVisit(mapping);
+            return new ResolveOutcome(OutcomeType.REDIRECT, mapping.getOriginalUrl());
+        }
+
+        return new ResolveOutcome(OutcomeType.PASSWORD_REQUIRED, null);
+    }
+
+    public String resolveWithPassword(String shortCode, String password) {
+        UrlShortener mapping = loadAndValidate(shortCode);
+
+        if (mapping.getPasswordHash() == null) {
+            // URL doesn't need a password — just redirect
+            recordVisit(mapping);
+            return mapping.getOriginalUrl();
+        }
+
+        boolean match = passwordEncoder.matches(password, mapping.getPasswordHash());
+        if (!match) {
+            throw new InvalidPasswordException(shortCode);
+        }
+        recordVisit(mapping);
+        return mapping.getOriginalUrl();
+
     }
 
     private String resolveShortCode(String providedShortCode) {
@@ -45,7 +99,13 @@ public class UrlShortenerService {
         return generateUniqueCode();
     }
 
-    public ShortenResult shorten(String originalUrl, User user, Instant expiresAt, String providedShortCode) {
+    public ShortenResult shorten(User user, ShortenRequest request) {
+        String providedShortCode = request.shortCode();
+        String originalUrl = request.originalUrl();
+        Instant expiresAt = request.expiresAt();
+        String password = request.password();
+        String hashedPassword = (password != null && !password.isBlank()) ? passwordEncoder.encode(password) : null;
+
         String shortCode = resolveShortCode(providedShortCode);
         String normalized = normalizeUrl(originalUrl);
         UrlShortener mapping = UrlShortener.builder()
@@ -53,6 +113,7 @@ public class UrlShortenerService {
                 .shortCode(shortCode)
                 .user(user)
                 .expiresAt(expiresAt)
+                .passwordHash(hashedPassword)
                 .build();
         try {
             return new ShortenResult(repository.save(mapping));
@@ -87,8 +148,7 @@ public class UrlShortenerService {
         for (int i = 0; i < urls.size(); i++) {
             ShortenRequest shortenRequest = urls.get(i);
             try {
-                ShortenResult result = shorten(shortenRequest.originalUrl(), user, shortenRequest.expiresAt(),
-                        shortenRequest.shortCode());
+                ShortenResult result = shorten(user, shortenRequest);
 
                 unitResponses.add(UnitShortenResponse.success(i, result.mapping));
             } catch (ShortCodeTakenException e) {
@@ -109,16 +169,13 @@ public class UrlShortenerService {
 
     @Transactional
     public String resolve(String shortCode) {
-        UrlShortener mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        UrlShortener mapping = loadAndValidate(shortCode);
 
-        if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(Instant.now())) {
-            throw new UrlExpiredException(shortCode);
+        if(mapping.getPasswordHash() != null){
+            throw new PasswordRequiredException(shortCode);
         }
 
-        mapping.setVisitCount(mapping.getVisitCount() + 1);
-        mapping.setLastAccessedAt(LocalDateTime.now());
-        repository.save(mapping);
+        recordVisit(mapping);
         return mapping.getOriginalUrl();
     }
 

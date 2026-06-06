@@ -50,20 +50,12 @@ public class UrlShortenerController {
     public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
         User user = userService.findByApiKey(apiKey);
-        ShortenResult result = service.shorten(request.originalUrl(), user, request.expiresAt, request.shortCode);
+        ShortenResult result = service.shorten(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ShortenResponse.from(result.mapping()));
     }
 
     @GetMapping("/redirect")
     public ResponseEntity<UrlShortener> redirect(@RequestParam String shortCode) {
-        String originalUrl = service.resolve(shortCode);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(originalUrl))
-                .build();
-    }
-
-    @GetMapping("/r/{shortCode}")
-    public ResponseEntity<Void> redirectCustom(@PathVariable String shortCode) {
         String originalUrl = service.resolve(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(originalUrl))
@@ -106,6 +98,7 @@ public class UrlShortenerController {
     public record ShortenRequest(
             @NotBlank @URL @Size(max = 2048) String originalUrl,
             @Future(message = "Expiry must be in the future") Instant expiresAt,
+            @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters") String password,
             @Size(min = 3, max = 50, message = "Short code must be 3-50 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Short code can only contain letters, numbers, hyphens, and underscores") String shortCode) {
     }
 

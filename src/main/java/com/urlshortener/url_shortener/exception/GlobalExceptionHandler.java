@@ -12,9 +12,11 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.urlshortener.url_shortener.controller.UrlShortenerController;
+
 import jakarta.validation.ConstraintViolationException;
 
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = UrlShortenerController.class)
 public class GlobalExceptionHandler {
 
         @ExceptionHandler(ShortCodeNotFoundException.class)
@@ -112,6 +114,16 @@ public class GlobalExceptionHandler {
                                 "error", "FORBIDDEN",
                                 "message", ex.getMessage());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        }
+
+        @ExceptionHandler(PasswordRequiredException.class)
+        public ResponseEntity<Map<String, Object>> handlePasswordRequiredException(PasswordRequiredException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", HttpStatus.UNAUTHORIZED,
+                                "error", "UNAUTHORIZED",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
         }
 
         private String extractCleanMessage(HttpMessageNotReadableException ex) {

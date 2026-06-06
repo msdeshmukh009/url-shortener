@@ -3,6 +3,8 @@ package com.urlshortener.url_shortener.entity;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -44,6 +46,10 @@ public class UrlShortener {
 
     @Column(name = "expires_at")
     private Instant expiresAt;
+
+    @Column(name = "password_hash")
+    @JsonIgnore
+    private String passwordHash;
 
     @PrePersist
     void prePersist() {
