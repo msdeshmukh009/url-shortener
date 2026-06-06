@@ -13,7 +13,8 @@ public record ShortenResponse(
         Integer visitCount,
         LocalDateTime lastAccessedAt,
         Instant expiresAt,
-        Integer userId
+        Integer userId,
+        Boolean isPasswordProtected
 ) {
     public static ShortenResponse from(UrlShortener entity) {
         return new ShortenResponse(
@@ -24,7 +25,8 @@ public record ShortenResponse(
                 entity.getVisitCount(),
                 entity.getLastAccessedAt(),
                 entity.getExpiresAt(),
-                entity.getUser() != null ? entity.getUser().getId() : null
+                entity.getUser() != null ? entity.getUser().getId() : null,
+                entity.getPasswordHash() != null
         );
     }
 }

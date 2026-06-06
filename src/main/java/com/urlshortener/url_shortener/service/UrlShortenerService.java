@@ -7,12 +7,15 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.controller.UrlShortenerController.ShortenRequest;
 import com.urlshortener.url_shortener.dto.BulkShortenResponse;
 import com.urlshortener.url_shortener.dto.ResolveOutcome;
+import com.urlshortener.url_shortener.dto.ShortenResponse;
 import com.urlshortener.url_shortener.dto.UnitShortenResponse;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
@@ -171,12 +174,22 @@ public class UrlShortenerService {
     public String resolve(String shortCode) {
         UrlShortener mapping = loadAndValidate(shortCode);
 
-        if(mapping.getPasswordHash() != null){
+        if (mapping.getPasswordHash() != null) {
             throw new PasswordRequiredException(shortCode);
         }
 
         recordVisit(mapping);
         return mapping.getOriginalUrl();
+    }
+
+    public Page<ShortenResponse> listUrls(User user, Pageable pageable, boolean includeDeleted) {
+        Page<UrlShortener> entities;
+        if (includeDeleted) {
+            entities = repository.findByUserId(user.getId(), pageable);
+        } else {
+            entities = repository.findByUserIdAndIsDeletedFalse(user.getId(), pageable);
+        }
+        return entities.map(ShortenResponse::from);
     }
 
     public UrlShortener findByShortCode(String shortCode) {

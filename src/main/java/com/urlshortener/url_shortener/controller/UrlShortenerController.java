@@ -5,6 +5,9 @@ import java.time.Instant;
 import java.util.List;
 
 import org.hibernate.validator.constraints.URL;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -93,6 +96,15 @@ public class UrlShortenerController {
         User user = userService.findByApiKey(apiKey);
         ShortenResult result = service.edit(user, request.expiresAt, shortCode);
         return ResponseEntity.status(HttpStatus.OK).body(ShortenResponse.from(result.mapping()));
+    }
+
+    @GetMapping("/urls")
+    public Page<ShortenResponse> list(
+            @RequestHeader("X-API-Key") String apiKey,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable,
+            @RequestParam(defaultValue = "false") boolean includeDeleted) {
+        User user = userService.findByApiKey(apiKey);
+        return service.listUrls(user, pageable, includeDeleted);
     }
 
     public record ShortenRequest(
