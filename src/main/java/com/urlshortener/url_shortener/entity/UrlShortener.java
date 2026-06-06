@@ -1,6 +1,9 @@
 package com.urlshortener.url_shortener.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -31,9 +34,29 @@ public class UrlShortener {
     @Column(name = "last_accessed_at")
     private LocalDateTime lastAccessedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
+    @Column(name = "password_hash")
+    @JsonIgnore
+    private String passwordHash;
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.visitCount = 0;
+        if (this.isDeleted == null) {
+            this.isDeleted = false;
+        }
     }
 }

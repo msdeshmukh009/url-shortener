@@ -1,0 +1,1 @@
+ALTER TABLE url_shortener ADD COLUMN password_hash VARCHAR(255);
