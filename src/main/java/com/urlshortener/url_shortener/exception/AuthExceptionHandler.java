@@ -19,4 +19,14 @@ public class AuthExceptionHandler {
                 "message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
+
+    @ExceptionHandler(TierRestrictedException.class)
+    public ResponseEntity<Map<String, Object>> handleTierRestrictedException(TierRestrictedException ex) {
+        Map<String, Object> body = Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.FORBIDDEN,
+                "error", "FORBIDDEN",
+                "message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
 }

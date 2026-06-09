@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.urlshortener.url_shortener.filter.ApiKeyAuthFilter;
+import com.urlshortener.url_shortener.filter.TierFilter;
 import com.urlshortener.url_shortener.service.UserService;
 
 @Configuration
@@ -30,4 +31,16 @@ public class FilterConfig {
 
         return registrationBean;
     }
+
+    @Bean
+    public FilterRegistrationBean<TierFilter> tierFilterRegistration() {
+        FilterRegistrationBean<TierFilter> tierRegistrationBean = new FilterRegistrationBean<>();
+
+        tierRegistrationBean.setFilter(new TierFilter(resolver));
+        tierRegistrationBean.addUrlPatterns("/api/shorten/bulk");
+        tierRegistrationBean.setOrder(2);
+
+        return tierRegistrationBean;
+    }
+
 }

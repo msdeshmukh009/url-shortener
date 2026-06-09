@@ -25,7 +25,6 @@ import com.urlshortener.url_shortener.exception.InvalidPasswordException;
 import com.urlshortener.url_shortener.exception.PasswordRequiredException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.exception.ShortCodeTakenException;
-import com.urlshortener.url_shortener.exception.TierRestrictedException;
 import com.urlshortener.url_shortener.exception.UrlExpiredException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 
@@ -143,10 +142,6 @@ public class UrlShortenerService {
 
     public BulkShortenResponse bulkShorten(User user, List<ShortenRequest> urls) {
         List<UnitShortenResponse> unitResponses = new ArrayList<>();
-
-        if (!user.getTier().isCanUseBulkCreation()) {
-            throw new TierRestrictedException();
-        }
 
         for (int i = 0; i < urls.size(); i++) {
             ShortenRequest shortenRequest = urls.get(i);
