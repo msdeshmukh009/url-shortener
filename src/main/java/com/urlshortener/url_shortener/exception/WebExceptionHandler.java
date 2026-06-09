@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @ControllerAdvice(assignableTypes = RedirectController.class)
 public class WebExceptionHandler {
-
     @ExceptionHandler(ShortCodeNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public String handleNotFound(Model model) {

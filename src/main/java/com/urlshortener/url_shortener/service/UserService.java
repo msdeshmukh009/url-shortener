@@ -18,4 +18,9 @@ public class UserService {
         User user = repository.findByApiKey(apiKey).orElseThrow(() -> new InvalidApiKeyException());
         return user;
     }
+
+    public User findByApiKeyWithTier(String apiKey) {
+        User user = repository.findByApiKeyWithTier(apiKey).orElseThrow(() -> new InvalidApiKeyException());
+        return user;
+    }
 }

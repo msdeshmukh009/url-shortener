@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,7 @@ import com.urlshortener.url_shortener.dto.BulkShortenResponse;
 import com.urlshortener.url_shortener.dto.ShortenResponse;
 import com.urlshortener.url_shortener.entity.UrlShortener;
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.filter.ApiKeyAuthFilter;
 import com.urlshortener.url_shortener.service.UrlShortenerService;
 import com.urlshortener.url_shortener.service.UserService;
 import com.urlshortener.url_shortener.service.UrlShortenerService.ShortenResult;
@@ -42,17 +44,15 @@ import jakarta.validation.constraints.Size;
 @Validated
 public class UrlShortenerController {
     private final UrlShortenerService service;
-    private final UserService userService;
 
     public UrlShortenerController(UrlShortenerService service, UserService userService) {
         this.service = service;
-        this.userService = userService;
     }
 
     @PostMapping("/shorten")
     public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request,
+            @RequestAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR) User user,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
-        User user = userService.findByApiKey(apiKey);
         ShortenResult result = service.shorten(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ShortenResponse.from(result.mapping()));
     }
@@ -67,16 +67,18 @@ public class UrlShortenerController {
 
     @DeleteMapping("/urls/{shortCode}")
     public ResponseEntity<Void> delete(@PathVariable String shortCode,
+            @RequestAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR) User user,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
-        User user = userService.findByApiKey(apiKey);
+
         service.deleteShortCode(shortCode, user.getId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/shorten/bulk")
     public ResponseEntity<BulkShortenResponse> bulkShorten(@Valid @RequestBody BulkShortenRequest request,
+            @RequestAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR) User user,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey) {
-        User user = userService.findByApiKey(apiKey);
+
         BulkShortenResponse response = service.bulkShorten(user, request.urls);
         HttpStatus status;
         if (response.failed() == 0) {
@@ -91,19 +93,21 @@ public class UrlShortenerController {
 
     @PatchMapping("/shorten/{shortCode}")
     public ResponseEntity<ShortenResponse> edit(@PathVariable String shortCode,
+            @RequestAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR) User user,
             @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey,
             @Valid @RequestBody EditRequest request) {
-        User user = userService.findByApiKey(apiKey);
+
         ShortenResult result = service.edit(user, request.expiresAt, shortCode);
         return ResponseEntity.status(HttpStatus.OK).body(ShortenResponse.from(result.mapping()));
     }
 
     @GetMapping("/urls")
     public Page<ShortenResponse> list(
-            @RequestHeader("X-API-Key") String apiKey,
+            @RequestAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR) User user,
+            @RequestHeader("X-API-Key") @NotBlank(message = "API key cannot be empty") String apiKey,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable,
             @RequestParam(defaultValue = "false") boolean includeDeleted) {
-        User user = userService.findByApiKey(apiKey);
+
         return service.listUrls(user, pageable, includeDeleted);
     }
 
