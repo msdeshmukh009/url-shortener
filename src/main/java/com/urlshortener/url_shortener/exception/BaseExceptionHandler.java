@@ -62,4 +62,14 @@ public class BaseExceptionHandler {
                                 "message", message);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
         }
+
+        @ExceptionHandler(BlockedApiKeyException.class)
+        public ResponseEntity<Map<String, Object>> handleBlocked(BlockedApiKeyException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", 403,
+                                "error", "Forbidden",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        }
 }

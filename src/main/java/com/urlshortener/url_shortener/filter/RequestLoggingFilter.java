@@ -41,7 +41,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
         try {
             filterChain.doFilter(request, response);
-            
+
         } finally {
             logRequest(request, response, startTime);
         }
