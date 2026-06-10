@@ -12,6 +12,9 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingResponseWrapper;
+
+import com.urlshortener.url_shortener.entity.User;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -36,14 +39,33 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
-
-        Instant startTime = Instant.now();
+        long filterStart = System.nanoTime();
+        ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
+        Instant start = Instant.now();
+        String requestId = UUID.randomUUID().toString();
+        wrappedResponse.setHeader("X-Request-Id", requestId);
+        long beforeChain = System.nanoTime();
+        long preWork = beforeChain - filterStart;
 
         try {
-            filterChain.doFilter(request, response);
-
+            filterChain.doFilter(request, wrappedResponse);
         } finally {
-            logRequest(request, response, startTime);
+            long afterChain = System.nanoTime();
+            try {
+                long durationMs = Instant.now().toEpochMilli() - start.toEpochMilli();
+                wrappedResponse.setHeader("X-Duration-Ms", String.valueOf(durationMs));
+                logRequest(request, wrappedResponse, start, requestId);
+            } catch (Exception e) {
+                log.error("Failed to log request", e);
+            } finally {
+                wrappedResponse.copyBodyToResponse();
+            }
+            long filterEnd = System.nanoTime();
+            long postWork = filterEnd - afterChain;
+
+            long ownTime = preWork + postWork;
+            long ownTimeMs = ownTime / 1_000_000;
+            log.debug("Filter Logging {}: own_time={}ms", getClass().getSimpleName(), ownTimeMs);
         }
     }
 
@@ -62,7 +84,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         return SKIP_PREFIX_PATHS.stream().anyMatch(path::startsWith);
     }
 
-    private void logRequest(HttpServletRequest request, HttpServletResponse response, Instant startTime) {
+    private void logRequest(HttpServletRequest request, HttpServletResponse response, Instant startTime,
+            String requestId) {
         long durationMs = Instant.now().toEpochMilli() - startTime.toEpochMilli();
 
         String method = request.getMethod();
@@ -71,7 +94,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String userAgent = request.getHeader("User-Agent");
         String ip = extractClientIp(request);
         int status = response.getStatus();
-        String requestId = UUID.randomUUID().toString();
 
         MDC.put("method", method);
         MDC.put("url", url);
@@ -82,7 +104,13 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         MDC.put("clientIp", ip);
         MDC.put("requestId", requestId);
 
-        response.setHeader("X-Request-Id", requestId);
+        User user = (User) request.getAttribute(ApiKeyAuthFilter.CURRENT_USER_ATTR);
+        if (user != null) {
+            MDC.put("userId", String.valueOf(user.getId()));
+            if (user.getTier() != null) {
+                MDC.put("userTier", user.getTier().getName());
+            }
+        }
 
         try {
             log.info("Request processed");
