@@ -3,7 +3,9 @@ package com.urlshortener.url_shortener.service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -44,14 +46,22 @@ public class UrlShortenerService {
     public record ShortenResult(UrlShortener mapping) {
     }
 
-    private UrlShortener loadAndValidate(String shortCode) {
-        UrlShortener mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+    private final Map<String, UrlShortener> cachedUrls = new HashMap<>();
 
+    private UrlShortener loadAndValidate(String shortCode) {
+        UrlShortener mapping = cachedUrls.get(shortCode);
+        
+        if (mapping == null) {
+            mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
+                    .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+            cachedUrls.put(shortCode, mapping);
+        } 
+        
         if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(Instant.now())) {
+            cachedUrls.remove(shortCode);   // evict expired entries
             throw new UrlExpiredException(shortCode);
         }
-
+        
         return mapping;
     }
 
@@ -135,7 +145,7 @@ public class UrlShortenerService {
         if (expiresAt != null) {
             mapping.setExpiresAt(expiresAt);
         }
-
+        cachedUrls.remove(shortCode); 
         return new ShortenResult(repository.save(mapping));
 
     }
@@ -206,6 +216,7 @@ public class UrlShortenerService {
 
         mapping.setIsDeleted(true);
         mapping.setDeletedAt(LocalDateTime.now());
+        cachedUrls.remove(shortCode);
         repository.save(mapping);
     }
 
