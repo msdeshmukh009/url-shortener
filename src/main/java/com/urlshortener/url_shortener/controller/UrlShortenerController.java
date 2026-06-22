@@ -3,11 +3,13 @@ package com.urlshortener.url_shortener.controller;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.hibernate.validator.constraints.URL;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -62,6 +64,7 @@ public class UrlShortenerController {
         String originalUrl = service.resolve(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(originalUrl))
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic()).cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .build();
     }
 

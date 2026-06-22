@@ -11,24 +11,30 @@ import com.urlshortener.url_shortener.dto.ResolveOutcome;
 import com.urlshortener.url_shortener.exception.InvalidPasswordException;
 import com.urlshortener.url_shortener.service.UrlShortenerService;
 
-@Controller 
+import jakarta.servlet.http.HttpServletResponse;
+
+@Controller
 public class RedirectController {
 
     private final UrlShortenerService service;
 
     public RedirectController(UrlShortenerService service) {
         this.service = service;
-}
+    }
 
     @GetMapping("/r/{shortCode}")
-    public String resolve(@PathVariable String shortCode, Model model) {        
+    public String resolve(@PathVariable String shortCode, Model model, HttpServletResponse response) {
         ResolveOutcome outcome = service.checkAccess(shortCode);
-        
+
         return switch (outcome.type()) {
-            case REDIRECT -> "redirect:" + outcome.originalUrl();
+            case REDIRECT -> {
+                setCacheableHeaders(response);
+                yield "redirect:" + outcome.originalUrl();
+            }
             case PASSWORD_REQUIRED -> {
                 model.addAttribute("shortCode", shortCode);
-                yield "password-form";   // looks up templates/password-form.html
+                setNoCacheHeaders(response);
+                yield "password-form"; // looks up templates/password-form.html
             }
         };
     }
@@ -37,8 +43,9 @@ public class RedirectController {
     public String unlock(
             @PathVariable String shortCode,
             @RequestParam String password,
-            Model model) {
-        
+            Model model,
+            HttpServletResponse response) {
+        setNoCacheHeaders(response);
         try {
             String originalUrl = service.resolveWithPassword(shortCode, password);
             return "redirect:" + originalUrl;
@@ -47,5 +54,15 @@ public class RedirectController {
             model.addAttribute("error", "Incorrect password. Please try again.");
             return "password-form";
         }
+    }
+
+    private void setCacheableHeaders(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "public, max-age=3600");
+    }
+
+    private void setNoCacheHeaders(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
     }
 }

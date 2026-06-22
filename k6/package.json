@@ -2,11 +2,15 @@
   "name": "k6_test",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "run-test.js",
   "scripts": {
-     "stress": "node scripts/run-test.js",
-     "quick": "k6 run scripts/quick-test.js"
+    "stress": "node scripts/run-test.js",
+    "quick": "k6 run scripts/quick-test.js"
   },
   "author": "Mahesh",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
 }
