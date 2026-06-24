@@ -39,33 +39,50 @@ import jakarta.transaction.Transactional;
 public class UrlShortenerService {
     private static final Logger log = LoggerFactory.getLogger(UrlShortenerService.class);
     private static final Duration CACHE_TTL = Duration.ofHours(1);
+    private static final Duration NEGATIVE_CACHE_TTL = Duration.ofSeconds(60);
     private static final String CACHE_KEY_PREFIX = "url:";
+    private static final String CACHE_URL_NOT_FOUND_PREFIX = "url:notfound:";
 
     private final UrlShortenerRepository repository;
 
     private final PasswordEncoder passwordEncoder;
 
     private final RedisTemplate<String, CachedUrl> cachedUrlRedisTemplate;
+    private final RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate;
 
     public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder,
-            RedisTemplate<String, CachedUrl> redisTemplate) {
+            RedisTemplate<String, CachedUrl> redisTemplate, RedisTemplate<String, Integer> redisUrlNotFoundTemplate) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.cachedUrlRedisTemplate = redisTemplate;
+        this.cachedUrlNotFoundRedisTemplate = redisUrlNotFoundTemplate;
     }
 
     private String cacheKey(String shortCode) {
         return CACHE_KEY_PREFIX + shortCode;
     }
 
+    private String urlNotFoundCache(String shortCode) {
+        return CACHE_URL_NOT_FOUND_PREFIX + shortCode;
+    }
+
     private CachedUrl loadCached(String shortCode) {
         String key = cacheKey(shortCode);
+        String notFoundKey = urlNotFoundCache(shortCode);
 
         try {
             CachedUrl cached = (CachedUrl) cachedUrlRedisTemplate.opsForValue().get(key);
             if (cached != null) {
-                log.debug("Cache hit for shortCode={}", shortCode);
+                log.info("Cache hit for shortCode={}", shortCode);
                 return cached;
+            }
+
+            Integer hit = (Integer) cachedUrlNotFoundRedisTemplate.opsForValue().get(notFoundKey);
+
+            if (hit != null && hit instanceof Integer) {
+                log.info("Cache hit for shortCode not found={} hit={}", shortCode, hit);
+                cachedUrlNotFoundRedisTemplate.opsForValue().set(notFoundKey, hit + 1, NEGATIVE_CACHE_TTL);
+                throw new ShortCodeNotFoundException(shortCode);
             }
         } catch (Exception e) {
             log.warn("Redis cache lookup failed for {}: {}", shortCode, e.getMessage());
@@ -74,7 +91,18 @@ public class UrlShortenerService {
         log.debug("Cache miss for shortCode={}", shortCode);
 
         UrlShortener entity = repository.findByShortCodeAndIsDeletedFalse(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+                .orElseGet(() -> {
+                    try {
+                        cachedUrlNotFoundRedisTemplate.opsForValue().set(notFoundKey, 1, NEGATIVE_CACHE_TTL);
+                    } catch (Exception ex) {
+                        log.warn("Failed to cache negative for {}: {}", shortCode, ex.getMessage());
+                    }
+                    return null;
+                });
+
+        if (entity == null) {
+            throw new ShortCodeNotFoundException(shortCode);
+        }
 
         CachedUrl cached = CachedUrl.from(entity);
 
@@ -90,6 +118,14 @@ public class UrlShortenerService {
     private void evictCache(String shortCode) {
         try {
             cachedUrlRedisTemplate.delete(cacheKey(shortCode));
+        } catch (Exception e) {
+            log.warn("Failed to evict cache for {}: {}", shortCode, e.getMessage());
+        }
+    }
+
+    public void evictNotFoundUrlCache(String shortCode) {
+        try {
+            cachedUrlRedisTemplate.delete(urlNotFoundCache(shortCode));
         } catch (Exception e) {
             log.warn("Failed to evict cache for {}: {}", shortCode, e.getMessage());
         }
@@ -181,6 +217,7 @@ public class UrlShortenerService {
                 .passwordHash(hashedPassword)
                 .build();
         try {
+            evictNotFoundUrlCache(shortCode);
             return new ShortenResult(repository.save(mapping));
         } catch (DataIntegrityViolationException e) {
             throw new ShortCodeTakenException(shortCode);
