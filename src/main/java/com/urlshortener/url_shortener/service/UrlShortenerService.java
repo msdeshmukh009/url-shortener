@@ -1,21 +1,24 @@
 package com.urlshortener.url_shortener.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.urlshortener.url_shortener.controller.UrlShortenerController.ShortenRequest;
 import com.urlshortener.url_shortener.dto.BulkShortenResponse;
+import com.urlshortener.url_shortener.dto.CachedUrl;
 import com.urlshortener.url_shortener.dto.ResolveOutcome;
 import com.urlshortener.url_shortener.dto.ShortenResponse;
 import com.urlshortener.url_shortener.dto.UnitShortenResponse;
@@ -34,70 +37,120 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class UrlShortenerService {
+    private static final Logger log = LoggerFactory.getLogger(UrlShortenerService.class);
+    private static final Duration CACHE_TTL = Duration.ofHours(1);
+    private static final String CACHE_KEY_PREFIX = "url:";
+
     private final UrlShortenerRepository repository;
 
     private final PasswordEncoder passwordEncoder;
 
-    public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder) {
+    private final RedisTemplate<String, CachedUrl> cachedUrlRedisTemplate;
+
+    public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder,
+            RedisTemplate<String, CachedUrl> redisTemplate) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
+        this.cachedUrlRedisTemplate = redisTemplate;
+    }
+
+    private String cacheKey(String shortCode) {
+        return CACHE_KEY_PREFIX + shortCode;
+    }
+
+    private CachedUrl loadCached(String shortCode) {
+        String key = cacheKey(shortCode);
+
+        try {
+            CachedUrl cached = (CachedUrl) cachedUrlRedisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                log.debug("Cache hit for shortCode={}", shortCode);
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("Redis cache lookup failed for {}: {}", shortCode, e.getMessage());
+        }
+
+        log.debug("Cache miss for shortCode={}", shortCode);
+
+        UrlShortener entity = repository.findByShortCodeAndIsDeletedFalse(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
+        CachedUrl cached = CachedUrl.from(entity);
+
+        try {
+            cachedUrlRedisTemplate.opsForValue().set(key, cached, CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("Failed to cache {}: {}", shortCode, e.getMessage());
+        }
+
+        return cached;
+    }
+
+    private void evictCache(String shortCode) {
+        try {
+            cachedUrlRedisTemplate.delete(cacheKey(shortCode));
+        } catch (Exception e) {
+            log.warn("Failed to evict cache for {}: {}", shortCode, e.getMessage());
+        }
     }
 
     public record ShortenResult(UrlShortener mapping) {
     }
 
-    private final Map<String, UrlShortener> cachedUrls = new HashMap<>();
+    private CachedUrl loadAndValidate(String shortCode) {
+        CachedUrl mapping = loadCached(shortCode);
 
-    private UrlShortener loadAndValidate(String shortCode) {
-        UrlShortener mapping = cachedUrls.get(shortCode);
-        
-        if (mapping == null) {
-            mapping = repository.findByShortCodeAndIsDeletedFalse(shortCode)
-                    .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
-            cachedUrls.put(shortCode, mapping);
-        } 
-        
-        if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(Instant.now())) {
-            cachedUrls.remove(shortCode);   // evict expired entries
+        if (mapping.expiresAt() != null && mapping.expiresAt().isBefore(Instant.now())) {
+            evictCache(shortCode);
             throw new UrlExpiredException(shortCode);
         }
-        
+
         return mapping;
     }
 
-    private void recordVisit(UrlShortener mapping) {
-        mapping.setVisitCount(mapping.getVisitCount() + 1);
-        mapping.setLastAccessedAt(LocalDateTime.now());
-        repository.save(mapping);
+    private UrlShortener freshLoadAndValidate(String shortCode) {
+        UrlShortener entity = repository.findByShortCodeAndIsDeletedFalse(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+
+        if (entity.getExpiresAt() != null && entity.getExpiresAt().isBefore(Instant.now())) {
+            evictCache(shortCode);
+            throw new UrlExpiredException(shortCode);
+        }
+
+        return entity;
+    }
+
+    private void recordVisit(Integer urlId) {
+        repository.incrementVisitCount(urlId, LocalDateTime.now());
     }
 
     public ResolveOutcome checkAccess(String shortCode) {
-        UrlShortener mapping = loadAndValidate(shortCode);
+        UrlShortener mapping = freshLoadAndValidate(shortCode);
 
         if (mapping.getPasswordHash() == null) {
-            recordVisit(mapping);
+            recordVisit(mapping.getId());
             return new ResolveOutcome(OutcomeType.REDIRECT, mapping.getOriginalUrl());
         }
 
         return new ResolveOutcome(OutcomeType.PASSWORD_REQUIRED, null);
     }
 
+    @Transactional
     public String resolveWithPassword(String shortCode, String password) {
-        UrlShortener mapping = loadAndValidate(shortCode);
+        UrlShortener entity = freshLoadAndValidate(shortCode);
 
-        if (mapping.getPasswordHash() == null) {
-            // URL doesn't need a password — just redirect
-            recordVisit(mapping);
-            return mapping.getOriginalUrl();
+        if (entity.getPasswordHash() == null) {
+            recordVisit(entity.getId());
+            return entity.getOriginalUrl();
         }
 
-        boolean match = passwordEncoder.matches(password, mapping.getPasswordHash());
-        if (!match) {
+        if (!passwordEncoder.matches(password, entity.getPasswordHash())) {
             throw new InvalidPasswordException(shortCode);
         }
-        recordVisit(mapping);
-        return mapping.getOriginalUrl();
 
+        recordVisit(entity.getId());
+        return entity.getOriginalUrl();
     }
 
     private String resolveShortCode(String providedShortCode) {
@@ -145,7 +198,7 @@ public class UrlShortenerService {
         if (expiresAt != null) {
             mapping.setExpiresAt(expiresAt);
         }
-        cachedUrls.remove(shortCode); 
+        evictCache(shortCode);
         return new ShortenResult(repository.save(mapping));
 
     }
@@ -177,14 +230,14 @@ public class UrlShortenerService {
 
     @Transactional
     public String resolve(String shortCode) {
-        UrlShortener mapping = loadAndValidate(shortCode);
+        CachedUrl mapping = loadAndValidate(shortCode);
 
-        if (mapping.getPasswordHash() != null) {
+        if (mapping.hasPassword()) {
             throw new PasswordRequiredException(shortCode);
         }
 
-        recordVisit(mapping);
-        return mapping.getOriginalUrl();
+        recordVisit(mapping.id());
+        return mapping.originalUrl();
     }
 
     public Page<ShortenResponse> listUrls(User user, Pageable pageable, boolean includeDeleted) {
@@ -216,7 +269,7 @@ public class UrlShortenerService {
 
         mapping.setIsDeleted(true);
         mapping.setDeletedAt(LocalDateTime.now());
-        cachedUrls.remove(shortCode);
+        evictCache(shortCode);
         repository.save(mapping);
     }
 
