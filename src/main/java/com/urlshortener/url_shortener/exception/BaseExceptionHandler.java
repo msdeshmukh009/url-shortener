@@ -72,4 +72,14 @@ public class BaseExceptionHandler {
                                 "message", ex.getMessage());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
         }
+
+        @ExceptionHandler(RateLimitException.class)
+        public ResponseEntity<Map<String, Object>> handleBlocked(RateLimitException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", 429,
+                                "error", "To many requests",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+        }
 }

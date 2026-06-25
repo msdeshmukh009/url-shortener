@@ -21,19 +21,31 @@ public class RedisConfig {
         RedisTemplate<String, CachedUrl> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new CachedUrlSerializer(objectMapper)); 
+        template.setValueSerializer(new CachedUrlSerializer(objectMapper));
         template.afterPropertiesSet();
         return template;
     }
 
-        @Bean
+    @Bean
     public RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate(
             RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
 
         RedisTemplate<String, Integer> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericToStringSerializer<>(Integer.class)); 
+        template.setValueSerializer(new GenericToStringSerializer<>(Integer.class));
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    public RedisTemplate<String, Long> userIpRedisTemplate(
+            RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+
+        RedisTemplate<String, Long> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericToStringSerializer<>(Long.class));
         template.afterPropertiesSet();
         return template;
     }

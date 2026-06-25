@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,7 +52,8 @@ public class UrlShortenerService {
     private final RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate;
 
     public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder,
-            RedisTemplate<String, CachedUrl> redisTemplate, RedisTemplate<String, Integer> redisUrlNotFoundTemplate) {
+            RedisTemplate<String, CachedUrl> redisTemplate,
+            @Qualifier("cachedUrlNotFoundRedisTemplate") RedisTemplate<String, Integer> redisUrlNotFoundTemplate) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.cachedUrlRedisTemplate = redisTemplate;
