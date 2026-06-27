@@ -22,4 +22,7 @@ public class Tier {
 
     @Column(name = "can_use_bulk_shorten", nullable = false)
     private boolean canUseBulkCreation;
+
+    @Column(name = "rate_limit_per_min")
+    private Integer rateLimitPerMin;
 }

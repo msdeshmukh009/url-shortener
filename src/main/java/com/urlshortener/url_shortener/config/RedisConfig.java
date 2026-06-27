@@ -1,5 +1,4 @@
 package com.urlshortener.url_shortener.config;
-
 import com.urlshortener.url_shortener.dto.CachedUrl;
 
 import tools.jackson.databind.ObjectMapper;
@@ -17,7 +16,6 @@ public class RedisConfig {
     @Bean
     public RedisTemplate<String, CachedUrl> cachedUrlRedisTemplate(
             RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-
         RedisTemplate<String, CachedUrl> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
@@ -29,7 +27,6 @@ public class RedisConfig {
     @Bean
     public RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate(
             RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-
         RedisTemplate<String, Integer> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
@@ -39,9 +36,8 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisTemplate<String, Long> userIpRedisTemplate(
+    public RedisTemplate<String, Long> userRateLimitRedisTemplate(
             RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-
         RedisTemplate<String, Long> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());

@@ -64,13 +64,13 @@ public class FilterConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<TierFilter> tierFilterRegistration() {
+    public FilterRegistrationBean<TierFilter> tierFilterRegistration(
+         RateLimitService rateLimitService
+    ) {
         FilterRegistrationBean<TierFilter> tierRegistrationBean = new FilterRegistrationBean<>();
-
-        tierRegistrationBean.setFilter(new TierFilter(resolver));
-        tierRegistrationBean.addUrlPatterns("/api/shorten/bulk");
+        tierRegistrationBean.setFilter(new TierFilter(resolver, rateLimitService));
+        tierRegistrationBean.addUrlPatterns("/api/shorten", "/api/urls", "/api/shorten/bulk");
         tierRegistrationBean.setOrder(Ordered.HIGHEST_PRECEDENCE + 40);
-
         return tierRegistrationBean;
     }
 
