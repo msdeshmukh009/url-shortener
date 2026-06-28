@@ -31,10 +31,10 @@ public class FilterConfig {
     @ConditionalOnProperty(name = "ratelimit.enabled", havingValue = "true", matchIfMissing = true)
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(
             RateLimitService rateLimitService,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
-
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver,
+            RateLimitProperties rateLimitProperties) {
         FilterRegistrationBean<RateLimitFilter> reg = new FilterRegistrationBean<>();
-        reg.setFilter(new RateLimitFilter(rateLimitService, resolver));
+        reg.setFilter(new RateLimitFilter(rateLimitService, resolver, rateLimitProperties));
         reg.addUrlPatterns("/api/*", "/r/*");
         reg.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return reg;
@@ -65,8 +65,7 @@ public class FilterConfig {
 
     @Bean
     public FilterRegistrationBean<TierFilter> tierFilterRegistration(
-         RateLimitService rateLimitService
-    ) {
+            RateLimitService rateLimitService) {
         FilterRegistrationBean<TierFilter> tierRegistrationBean = new FilterRegistrationBean<>();
         tierRegistrationBean.setFilter(new TierFilter(resolver, rateLimitService));
         tierRegistrationBean.addUrlPatterns("/api/shorten", "/api/urls", "/api/shorten/bulk");

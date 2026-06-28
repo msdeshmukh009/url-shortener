@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "ratelimit.max-requests-per-min=100",
         "ratelimit.max-redirect-requests-per-min=50",
-        "ratelimit.max-redirect-requests-per-min:50"
+        "ratelimit.max-shorten-requests-per-min:10"
 })
 @AutoConfigureMockMvc
 public class RateLimitIntegrationTest {

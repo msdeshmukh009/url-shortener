@@ -1,6 +1,8 @@
 package com.urlshortener.url_shortener.filter;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -45,9 +47,21 @@ public class TierFilter extends OncePerRequestFilter {
                 if (isBulkShortening && !user.getTier().isCanUseBulkCreation()) {
                     throw new TierRestrictedException();
                 }
+                if (rateLimitPerMin != null) {
+                    Long hitCount = rateLimitService.getHitCountByApiKeyUser(apiKey);
+                    Long remaining = rateLimitPerMin - hitCount;
+                    Instant nextWindowStart = Instant.now()
+                            .truncatedTo(ChronoUnit.MINUTES)
+                            .plus(1, ChronoUnit.MINUTES);
 
-                if (rateLimitPerMin != null && rateLimitService.getHitCountByApiKeyUser(apiKey) > rateLimitPerMin) {
-                    throw new RateLimitException();
+                    long resetEpochSeconds = nextWindowStart.getEpochSecond();
+                    if (hitCount > rateLimitPerMin) {
+                        throw new RateLimitException();
+                    } else {
+                        response.setHeader("X-RateLimit-Limit", rateLimitPerMin.toString());
+                        response.setHeader("X-RateLimit-Remaining", remaining.toString());
+                        response.setHeader("X-RateLimit-Reset", String.valueOf(resetEpochSeconds));
+                    }
                 }
             }
             preWorkNs = System.nanoTime() - filterStart;

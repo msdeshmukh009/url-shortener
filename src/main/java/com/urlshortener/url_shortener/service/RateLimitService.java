@@ -2,9 +2,10 @@ package com.urlshortener.url_shortener.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import com.urlshortener.url_shortener.config.RateLimitProperties;
 
 import java.time.Duration;
 
@@ -16,20 +17,20 @@ public class RateLimitService {
     private static final String USER_API_KEY_PREFIX = "ratelimit:apiKey:";
     private static final String API_KEY_SHORTEN_PREFIX = "ratelimit:apiKey:shorten";
     private static final String API_KEY_REDIRECT_PREFIX = "ratelimit:ip:redirect";
+    
+    private final int ALLOWED_REQUEST_PER_MIN;
 
-    @Value("${ratelimit.max-requests-per-min:100}")
-    private int ALLOWED_REQUEST_PER_MIN;
+    public final  int ALLOWED_SHORTEN_REQUEST_PER_MIN;
 
-    @Value("${ratelimit.max-shorten-requests-per-min:10}")
-    private int ALLOWED_SHORTEN_REQUEST_PER_MIN;
-
-    @Value("${ratelimit.max-redirect-requests-per-min:50}")
-    private int ALLOWED_REDIRECT_REQUEST_PER_MIN;
+    public final int ALLOWED_REDIRECT_REQUEST_PER_MIN;
 
     private final RedisTemplate<String, Long> userRateLimitRedisTemplate;
 
-    public RateLimitService(RedisTemplate<String, Long> userRateLimitRedisTemplate) {
+    public RateLimitService(RedisTemplate<String, Long> userRateLimitRedisTemplate, RateLimitProperties rateLimitProperties) {
         this.userRateLimitRedisTemplate = userRateLimitRedisTemplate;
+        this.ALLOWED_REQUEST_PER_MIN = rateLimitProperties.getMaxRequestsPerMin();
+        this.ALLOWED_SHORTEN_REQUEST_PER_MIN = rateLimitProperties.getMaxShortenRequestsPerMin();
+        this.ALLOWED_REDIRECT_REQUEST_PER_MIN = rateLimitProperties.getMaxRedirectRequestsPerMin();
     }
 
     private String userIpCacheKey(String ip) {
@@ -123,32 +124,33 @@ public class RateLimitService {
         }
     }
 
-    public boolean isBlocked(String ip, String apiKey) {
-        if (apiKey != null) {
+    public long remainingHit(String ip, String apiKey) {
+        if (apiKey != null && !apiKey.isBlank()) {
             incrementHitCountByApiKeyUser(apiKey);
         }
 
-        if (ip != null && !ip.isBlank() && loadHitCountByUser(ip) > ALLOWED_REQUEST_PER_MIN) {
-            return true;
+        if (ip != null && !ip.isBlank() ) {
+            return ALLOWED_REQUEST_PER_MIN - loadHitCountByUser(ip);
         }
-        return false;
+        return -1;
     }
 
-    public boolean isShortenBlocked(String apiKey) {
-        long hitCount = loadHitCountForShorten(apiKey);
-        log.info("RateLimitService/Shorten Hit count {}", hitCount);
-        if (apiKey != null && !apiKey.isBlank() && hitCount > ALLOWED_SHORTEN_REQUEST_PER_MIN) {
-            return true;
+    public long remainingShortenHit(String apiKey) {
+        if (apiKey != null && !apiKey.isBlank()) {
+            long hitCount = loadHitCountForShorten(apiKey);
+            log.info("RateLimitService/Shorten Hit count {}", hitCount);
+
+            return ALLOWED_SHORTEN_REQUEST_PER_MIN - hitCount;
         }
-        return false;
+        return -1;
     }
 
-    public boolean isRedirectBlocked(String ip) {
-        long hitCount = loadHitCountForRedirect(ip);
-        log.info("RateLimitService/Redirect Hit count {}", hitCount);
-        if (ip != null && !ip.isBlank() && hitCount > ALLOWED_REDIRECT_REQUEST_PER_MIN) {
-            return true;
+    public long remainingRedirectHit(String ip) {
+        if (ip != null && !ip.isBlank()) {
+            long hitCount = loadHitCountForRedirect(ip);
+            log.info("RateLimitService/Redirect Hit count {}", hitCount);
+            return ALLOWED_REDIRECT_REQUEST_PER_MIN - hitCount;
         }
-        return false;
+        return -1;
     }
 }

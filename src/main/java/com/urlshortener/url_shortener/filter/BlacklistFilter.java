@@ -37,7 +37,7 @@ public class BlacklistFilter extends OncePerRequestFilter {
         String apiKey = request.getHeader(API_KEY_HEADER);
 
         try {
-            if (apiKey != null && blacklistService.isBlocked(apiKey)) {
+            if (apiKey != null && !apiKey.isBlank() && blacklistService.isBlocked(apiKey)) {
                 throw new BlockedApiKeyException();
             }
             preWorkNs = System.nanoTime() - filterStart;
