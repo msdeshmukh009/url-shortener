@@ -68,7 +68,7 @@ public class RateLimitIntegrationTest {
          Tier freeTier = tierRepository.findByName(TierType.FREE)
                 .orElseGet(() -> tierRepository.save(
                         Tier.builder()
-                                .name(TierType.HOBBY)
+                                .name(TierType.FREE)
                                 .canUseBulkCreation(false)
                                 .build()));
         String apiKey = "apikey-rate-" + UUID.randomUUID();
