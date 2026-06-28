@@ -1,12 +1,16 @@
 package com.urlshortener.url_shortener.filter;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.exception.RateLimitException;
 import com.urlshortener.url_shortener.exception.TierRestrictedException;
+import com.urlshortener.url_shortener.service.RateLimitService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,12 +21,16 @@ import org.slf4j.LoggerFactory;
 
 public class TierFilter extends OncePerRequestFilter {
     private static final String CURRENT_USER_ATTR = "currentUser";
+    private static final String BULK_SHORTEN_ENDPOINT = "/api/shorten/bulk";
+    private static final String API_KEY_HEADER = "X-API-KEY";
     private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
+    private final RateLimitService rateLimitService;
 
     private final HandlerExceptionResolver resolver;
 
-    public TierFilter(HandlerExceptionResolver resolver) {
+    public TierFilter(HandlerExceptionResolver resolver, RateLimitService rateLimitService) {
         this.resolver = resolver;
+        this.rateLimitService = rateLimitService;
     }
 
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -31,9 +39,29 @@ public class TierFilter extends OncePerRequestFilter {
         long preWorkNs = 0;
         try {
             User user = (User) request.getAttribute(CURRENT_USER_ATTR);
+            Integer rateLimitPerMin = user.getTier().getRateLimitPerMin();
+            String apiKey = request.getHeader(API_KEY_HEADER);
+            String url = request.getRequestURI();
+            Boolean isBulkShortening = BULK_SHORTEN_ENDPOINT.equals(url);
             if (user != null) {
-                if (!user.getTier().isCanUseBulkCreation()) {
+                if (isBulkShortening && !user.getTier().isCanUseBulkCreation()) {
                     throw new TierRestrictedException();
+                }
+                if (rateLimitPerMin != null) {
+                    Long hitCount = rateLimitService.getHitCountByApiKeyUser(apiKey);
+                    Long remaining = rateLimitPerMin - hitCount;
+                    Instant nextWindowStart = Instant.now()
+                            .truncatedTo(ChronoUnit.MINUTES)
+                            .plus(1, ChronoUnit.MINUTES);
+
+                    long resetEpochSeconds = nextWindowStart.getEpochSecond();
+                    if (hitCount > rateLimitPerMin) {
+                        throw new RateLimitException();
+                    } else {
+                        response.setHeader("X-RateLimit-Limit", rateLimitPerMin.toString());
+                        response.setHeader("X-RateLimit-Remaining", remaining.toString());
+                        response.setHeader("X-RateLimit-Reset", String.valueOf(resetEpochSeconds));
+                    }
                 }
             }
             preWorkNs = System.nanoTime() - filterStart;
@@ -42,6 +70,7 @@ public class TierFilter extends OncePerRequestFilter {
             if (preWorkNs == 0) {
                 preWorkNs = System.nanoTime() - filterStart;
             }
+            log.warn("Error/TierFilter {}", e.toString());
             resolver.resolveException(request, response, null, e);
         } finally {
             long ownTimeMs = preWorkNs / 1_000_000;

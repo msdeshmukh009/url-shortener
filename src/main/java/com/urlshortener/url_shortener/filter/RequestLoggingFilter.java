@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import com.urlshortener.url_shortener.entity.User;
+import com.urlshortener.url_shortener.utils.IpAddressUtil;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -92,7 +93,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String url = request.getRequestURI();
         String query = request.getQueryString();
         String userAgent = request.getHeader("User-Agent");
-        String ip = extractClientIp(request);
+        String ip = IpAddressUtil.extractIp(request);
         int status = response.getStatus();
 
         MDC.put("method", method);
@@ -117,13 +118,5 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         } finally {
             MDC.clear();
         }
-    }
-
-    private String extractClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim(); // first IP is the original client
-        }
-        return request.getRemoteAddr();
     }
 }
