@@ -5,17 +5,23 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.resilience.annotation.Retryable;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.TransientDataAccessException;
 
 import com.urlshortener.url_shortener.controller.UrlShortenerController.ShortenRequest;
 import com.urlshortener.url_shortener.dto.BulkShortenResponse;
@@ -29,10 +35,12 @@ import com.urlshortener.url_shortener.enums.OutcomeType;
 import com.urlshortener.url_shortener.exception.ForbiddenException;
 import com.urlshortener.url_shortener.exception.InvalidPasswordException;
 import com.urlshortener.url_shortener.exception.PasswordRequiredException;
+import com.urlshortener.url_shortener.exception.ServiceUnavailableException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.exception.ShortCodeTakenException;
 import com.urlshortener.url_shortener.exception.UrlExpiredException;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
+import com.urlshortener.url_shortener.resilience.SimpleCircuitBreaker;
 
 import jakarta.transaction.Transactional;
 
@@ -43,6 +51,9 @@ public class UrlShortenerService {
     private static final Duration NEGATIVE_CACHE_TTL = Duration.ofSeconds(60);
     private static final String CACHE_KEY_PREFIX = "url:";
     private static final String CACHE_URL_NOT_FOUND_PREFIX = "url:notfound:";
+    // one shared breaker instance as a field — state must persist across calls
+    private final SimpleCircuitBreaker dbBreaker = SimpleCircuitBreaker.of("url-db-save",
+            Set.of(DataIntegrityViolationException.class));
 
     private final UrlShortenerRepository repository;
 
@@ -51,6 +62,12 @@ public class UrlShortenerService {
     private final RedisTemplate<String, CachedUrl> cachedUrlRedisTemplate;
     private final RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate;
 
+    // Self-reference so we can call @Retryable methods THROUGH the Spring proxy.
+    // Calling this.saveWithRetry(...) directly would bypass the proxy and skip
+    // retry entirely; self.saveWithRetry(...) goes through it. @Lazy breaks the
+    // circular dependency of a bean injecting itself.
+    private UrlShortenerService self;
+
     public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder,
             RedisTemplate<String, CachedUrl> redisTemplate,
             @Qualifier("cachedUrlNotFoundRedisTemplate") RedisTemplate<String, Integer> redisUrlNotFoundTemplate) {
@@ -58,6 +75,11 @@ public class UrlShortenerService {
         this.passwordEncoder = passwordEncoder;
         this.cachedUrlRedisTemplate = redisTemplate;
         this.cachedUrlNotFoundRedisTemplate = redisUrlNotFoundTemplate;
+    }
+
+    @Autowired
+    public void setSelf(@Lazy UrlShortenerService self) {
+        this.self = self;
     }
 
     private String cacheKey(String shortCode) {
@@ -159,6 +181,11 @@ public class UrlShortenerService {
         return entity;
     }
 
+    // Visit-counting kept SYNCHRONOUS and NOT retried (deliberate choice):
+    // a visit count is non-critical, and this runs inside @Transactional
+    // resolve paths where retrying in-place would hit a poisoned (rollback-only)
+    // transaction anyway. Losing one increment on a rare transient blip is an
+    // acceptable trade for simplicity and correct transaction behavior.
     private void recordVisit(Integer urlId) {
         repository.incrementVisitCount(urlId, LocalDateTime.now());
     }
@@ -202,6 +229,24 @@ public class UrlShortenerService {
         return generateUniqueCode();
     }
 
+    /**
+     * Save a new mapping, retrying only TRANSIENT database faults (connection
+     * blips, lock contention). A unique/PK constraint violation is explicitly
+     * NOT retried (noRetryFor) — it's deterministic; it propagates so the caller
+     * translates it to ShortCodeTakenException.
+     *
+     * Must be called via self.saveWithRetry(...) so the Spring Retry proxy fires.
+     */
+    @Retryable(includes = { TransientDataAccessException.class, CannotAcquireLockException.class }, excludes = {
+            DataIntegrityViolationException.class }, // constraint conflict: never retry
+            maxRetries = 2, // 1 initial + 2 retries = 3 total (matches old maxAttempts=3)
+            delay = 150, // ms
+            multiplier = 2.0, maxDelay = 1200, jitter = 50 // ms of randomization, replaces random=true
+    )
+    public UrlShortener saveWithRetry(UrlShortener mapping) {
+        return repository.save(mapping);
+    }
+
     public ShortenResult shorten(User user, ShortenRequest request) {
         String providedShortCode = request.shortCode();
         String originalUrl = request.originalUrl();
@@ -220,9 +265,18 @@ public class UrlShortenerService {
                 .build();
         try {
             evictNotFoundUrlCache(shortCode);
-            return new ShortenResult(repository.save(mapping));
+            // breaker OUTSIDE, retry INSIDE:
+            // self.saveWithRetry does its 3 attempts; only if that whole cycle
+            // fails does the breaker count ONE failure. 3 such cycles -> OPEN.
+            return new ShortenResult(
+                    dbBreaker.execute(() -> self.saveWithRetry(mapping)));
         } catch (DataIntegrityViolationException e) {
+            // deterministic conflict — not retried, translated instead
             throw new ShortCodeTakenException(shortCode);
+        } catch (SimpleCircuitBreaker.CircuitOpenException e) {
+            // breaker is OPEN — DB is presumed down, fail fast without waiting
+            log.warn("DB circuit open, rejecting shorten for {}", shortCode);
+            throw new ServiceUnavailableException("Service temporarily unavailable, try again shortly");
         }
     }
 

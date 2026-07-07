@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -81,5 +83,15 @@ public class BaseExceptionHandler {
                                 "error", "To many requests",
                                 "message", ex.getMessage());
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+        }
+
+        @ExceptionHandler(ServiceUnavailableException.class)
+        public ResponseEntity<Map<String, Object>> handleBlocked(ServiceUnavailableException ex) {
+                Map<String, Object> body = Map.of(
+                                "timestamp", LocalDateTime.now(),
+                                "status", 503,
+                                "error", "Service unavailable",
+                                "message", ex.getMessage());
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
         }
 }
