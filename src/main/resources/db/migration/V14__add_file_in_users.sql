@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN image_file BYTEA;
+ALTER TABLE users ADD COLUMN image_thumbnail VARCHAR(255) DEFAULT NULL;

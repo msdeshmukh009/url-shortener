@@ -32,4 +32,10 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tier_id")
     private Tier tier;
+
+    @Column(name = "image_file")
+    private byte[] imageFile;
+
+    @Column(name = "image_thumbnail")
+    private String imageThumbnail;
 }
