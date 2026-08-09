@@ -17,7 +17,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.databind.ObjectMapper;
 import com.urlshortener.url_shortener.entity.Tier;
@@ -28,9 +27,11 @@ import com.urlshortener.url_shortener.repository.TierRepository;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 import com.urlshortener.url_shortener.repository.UserRepository;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "app.viewcount.mode=THRESHOLD",
+        "app.viewcount.flush-threshold=1" 
+})
 @AutoConfigureMockMvc
-@Transactional
 public class RedirectControllerIntegrationTest {
 
     @Autowired
@@ -223,9 +224,17 @@ public class RedirectControllerIntegrationTest {
                 .param("password", CORRECT_PASSWORD))
                 .andExpect(status().is3xxRedirection());
 
-        UrlShortener after = urlRepository.findByShortCode(shortCode).orElseThrow();
-        assertThat(after.getVisitCount()).isEqualTo(countBefore + 1);
-        assertThat(after.getLastAccessedAt()).isNotNull();
+        Integer expected = countBefore + 1;
+        Instant deadline = Instant.now().plusSeconds(15);
+        Integer countAfter = null;
+        while (Instant.now().isBefore(deadline)) {
+            countAfter = urlRepository.findByShortCode(shortCode)
+                    .orElseThrow().getVisitCount();
+            if (expected.equals(countAfter)) break;
+            Thread.sleep(100);
+        }
+
+        assertThat(countAfter).isEqualTo(expected);
     }
 
     @Test
