@@ -32,4 +32,8 @@ public interface UrlShortenerRepository extends JpaRepository<UrlShortener, Inte
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE UrlShortener u SET u.visitCount = u.visitCount + 1, u.lastAccessedAt = :timestamp WHERE u.id = :id")
     int incrementVisitCount(@Param("id") Integer id, @Param("timestamp") LocalDateTime timestamp);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE UrlShortener u SET u.visitCount = u.visitCount + :count, u.lastAccessedAt = :timestamp WHERE u.id = :id")
+    int incrementVisitCountBy(@Param("id") Integer id, @Param("count") long count, @Param("timestamp") LocalDateTime timestamp);
 }

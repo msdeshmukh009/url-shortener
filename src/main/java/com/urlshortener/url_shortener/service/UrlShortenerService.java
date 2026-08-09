@@ -39,6 +39,7 @@ import com.urlshortener.url_shortener.exception.ServiceUnavailableException;
 import com.urlshortener.url_shortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.url_shortener.exception.ShortCodeTakenException;
 import com.urlshortener.url_shortener.exception.UrlExpiredException;
+import com.urlshortener.url_shortener.queue.VisitCountBatcher;
 import com.urlshortener.url_shortener.repository.UrlShortenerRepository;
 import com.urlshortener.url_shortener.resilience.SimpleCircuitBreaker;
 
@@ -58,6 +59,7 @@ public class UrlShortenerService {
     private final UrlShortenerRepository repository;
 
     private final PasswordEncoder passwordEncoder;
+    private final VisitCountBatcher visitCountBatcher;
 
     private final RedisTemplate<String, CachedUrl> cachedUrlRedisTemplate;
     private final RedisTemplate<String, Integer> cachedUrlNotFoundRedisTemplate;
@@ -70,11 +72,13 @@ public class UrlShortenerService {
 
     public UrlShortenerService(UrlShortenerRepository repository, PasswordEncoder passwordEncoder,
             RedisTemplate<String, CachedUrl> redisTemplate,
-            @Qualifier("cachedUrlNotFoundRedisTemplate") RedisTemplate<String, Integer> redisUrlNotFoundTemplate) {
+            @Qualifier("cachedUrlNotFoundRedisTemplate") RedisTemplate<String, Integer> redisUrlNotFoundTemplate,
+        VisitCountBatcher visitCountBatcher) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.cachedUrlRedisTemplate = redisTemplate;
         this.cachedUrlNotFoundRedisTemplate = redisUrlNotFoundTemplate;
+        this.visitCountBatcher = visitCountBatcher;
     }
 
     @Autowired
@@ -181,13 +185,8 @@ public class UrlShortenerService {
         return entity;
     }
 
-    // Visit-counting kept SYNCHRONOUS and NOT retried (deliberate choice):
-    // a visit count is non-critical, and this runs inside @Transactional
-    // resolve paths where retrying in-place would hit a poisoned (rollback-only)
-    // transaction anyway. Losing one increment on a rare transient blip is an
-    // acceptable trade for simplicity and correct transaction behavior.
     private void recordVisit(Integer urlId) {
-        repository.incrementVisitCount(urlId, LocalDateTime.now());
+        visitCountBatcher.recordVisit(urlId);
     }
 
     public ResolveOutcome checkAccess(String shortCode) {
