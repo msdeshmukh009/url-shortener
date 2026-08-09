@@ -54,7 +54,7 @@ public class ThumbnailGenerationJob {
         this.userRepository = userRepository;
     }
 
-    @Scheduled(fixedDelay = 30_000)
+    @Scheduled(fixedDelay = 300_000)
     public void generateMissingThumbnails() {
         Pageable batch = PageRequest.of(0, batchSize); // always the first N still-NULL rows
         List<User> pending = userRepository.findUsersNeedingThumbnail(batch);
