@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.urlshortener.url_shortener.pubsub.EventBus;
+import com.urlshortener.url_shortener.pubsub.EventPublisher;
 import com.urlshortener.url_shortener.pubsub.Events;
 
 import java.time.LocalTime;
@@ -18,17 +18,17 @@ public class EnqueueController {
 
     private static final Logger log = LoggerFactory.getLogger(EnqueueController.class);
 
-    private final EventBus eventBus;
+    private final EventPublisher eventPublisher;
 
-    public EnqueueController(EventBus eventBus) {
-        this.eventBus = eventBus;
+    public EnqueueController(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping("/enqueue")
     public ResponseEntity<String> enqueue(@RequestParam Integer userId) {
         log.info(">> /enqueue received for user id={} at {}", userId, LocalTime.now());
 
-        eventBus.publish(Events.IMAGE_UPLOADED, userId);
+        eventPublisher.publish(Events.IMAGE_UPLOADED, userId.toString());
 
         log.info("<< /enqueue returning 202 for user id={} at {} (thumbnail NOT done yet)",
                 userId, LocalTime.now());
