@@ -12,6 +12,7 @@ import com.urlshortener.url_shortener.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findByApiKey(String apiKey);
+    Optional<User> findById(Integer apiKey);
 
     long countByImageFileIsNull();
 

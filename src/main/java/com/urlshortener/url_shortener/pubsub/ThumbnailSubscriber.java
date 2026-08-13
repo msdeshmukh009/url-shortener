@@ -9,6 +9,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Component;
 
 import com.urlshortener.url_shortener.service.ThumbnailService;
+import com.urlshortener.url_shortener.service.ThumbnailStatusService;
 
 import jakarta.annotation.PostConstruct;
 
@@ -20,11 +21,13 @@ public class ThumbnailSubscriber implements MessageListener {
 
     private final RedisMessageListenerContainer container;
     private final ThumbnailService thumbnailService;
+    private final ThumbnailStatusService thumbnailStatusService;
 
     public ThumbnailSubscriber(RedisMessageListenerContainer container,
-                                   ThumbnailService thumbnailService) {
+                                   ThumbnailService thumbnailService, ThumbnailStatusService thumbnailStatusService) {
         this.container = container;
         this.thumbnailService = thumbnailService;
+        this.thumbnailStatusService = thumbnailStatusService;
     }
 
     @PostConstruct
@@ -39,7 +42,8 @@ public class ThumbnailSubscriber implements MessageListener {
         log.info("RECEIVED on '{}': {}", CHANNEL, body);
         try {
             Integer userId = Integer.valueOf(body.trim());
-            thumbnailService.generateThumbnail(userId);
+            String url = thumbnailService.generateThumbnail(userId);
+            thumbnailStatusService.notifyReady(userId, url);
             logUpload(userId);
             notifyAdmin(userId);
         } catch (Exception e) {

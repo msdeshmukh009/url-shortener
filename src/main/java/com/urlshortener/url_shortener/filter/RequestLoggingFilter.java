@@ -82,6 +82,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             return true;
         }
 
+        if (path.equals("/thumbnailStatusLong")) return true; 
+
         return SKIP_PREFIX_PATHS.stream().anyMatch(path::startsWith);
     }
 

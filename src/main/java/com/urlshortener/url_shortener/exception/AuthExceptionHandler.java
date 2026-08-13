@@ -20,6 +20,16 @@ public class AuthExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidApiKey(UserNotFoundException ex) {
+        Map<String, Object> body = Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.NOT_FOUND,
+                "error", "User not found",
+                "message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     @ExceptionHandler(TierRestrictedException.class)
     public ResponseEntity<Map<String, Object>> handleTierRestrictedException(TierRestrictedException ex) {
         Map<String, Object> body = Map.of(
