@@ -22,6 +22,7 @@ public class QueueWorker {
     private final TaskQueue thumbnailQueue;
     private final TaskQueue logUploadQueue;
     private final TaskQueue notifyAdminQueue;
+    private final RetryQueue retryQueue;
     private final ThumbnailService thumbnailService;
 
     private ExecutorService executor;
@@ -31,10 +32,12 @@ public class QueueWorker {
             @Qualifier("thumbnailQueue") TaskQueue thumbnailQueue,
             @Qualifier("logUploadQueue") TaskQueue logUploadQueue,
             @Qualifier("notifyAdminQueue") TaskQueue notifyAdminQueue,
+            RetryQueue retryQueue,
             ThumbnailService thumbnailService) {
         this.thumbnailQueue = thumbnailQueue;
         this.logUploadQueue = logUploadQueue;
         this.notifyAdminQueue = notifyAdminQueue;
+        this.retryQueue = retryQueue;
         this.thumbnailService = thumbnailService;
     }
 
@@ -55,7 +58,13 @@ public class QueueWorker {
                 long waited = System.currentTimeMillis() - task.enqueuedAtMs();
                 log.info("[{}] worker on {} picked up user id={} (waited {}ms)",
                         queue.getName(), Thread.currentThread().getName(), task.userId(), waited);
-                handler.handle(task.userId());
+                try {
+                    handler.handle(task.userId());
+                } catch (Exception e) {
+                    log.error("[{}] failed to process user id={}, moving to retry queue",
+                            queue.getName(), task.userId(), e);
+                    retryQueue.enqueue(new RetryTask(queue.getName(), task.userId(), handler, task.enqueuedAtMs(), 1));
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -63,11 +72,6 @@ public class QueueWorker {
                 log.error("[{}] worker error", queue.getName(), e);
             }
         }
-    }
-
-    @FunctionalInterface
-    private interface TaskHandler {
-        void handle(Integer userId) throws Exception;
     }
 
     // ---- the three task functions -------------------------------------

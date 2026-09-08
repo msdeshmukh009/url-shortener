@@ -20,4 +20,9 @@ public class QueueConfig {
     public TaskQueue notifyAdminQueue() {
         return new TaskQueue("notify_admin");
     }
+
+    @Bean
+    public RetryQueue retryQueue() {
+        return new RetryQueue();
+    }
 }
