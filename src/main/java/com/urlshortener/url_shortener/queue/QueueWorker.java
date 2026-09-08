@@ -1,68 +1,97 @@
 package com.urlshortener.url_shortener.queue;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import com.urlshortener.url_shortener.queue.TaskQueue.ThumbnailTask;
+import com.urlshortener.url_shortener.dto.ThumbnailTask;
 import com.urlshortener.url_shortener.service.ThumbnailService;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-
 
 @Component
 public class QueueWorker {
 
     private static final Logger log = LoggerFactory.getLogger(QueueWorker.class);
 
-    private final TaskQueue taskQueue;
+    private final TaskQueue thumbnailQueue;
+    private final TaskQueue logUploadQueue;
+    private final TaskQueue notifyAdminQueue;
     private final ThumbnailService thumbnailService;
 
-    private Thread worker;
+    private ExecutorService executor;
     private volatile boolean running = true;
 
-    public QueueWorker(TaskQueue taskQueue, ThumbnailService thumbnailService) {
-        this.taskQueue = taskQueue;
+    public QueueWorker(
+            @Qualifier("thumbnailQueue") TaskQueue thumbnailQueue,
+            @Qualifier("logUploadQueue") TaskQueue logUploadQueue,
+            @Qualifier("notifyAdminQueue") TaskQueue notifyAdminQueue,
+            ThumbnailService thumbnailService) {
+        this.thumbnailQueue = thumbnailQueue;
+        this.logUploadQueue = logUploadQueue;
+        this.notifyAdminQueue = notifyAdminQueue;
         this.thumbnailService = thumbnailService;
     }
 
     @PostConstruct
     public void start() {
-        worker = new Thread(this::loop, "queue-worker");
-        worker.setDaemon(true);
-        worker.start();
-        log.info("queue worker started on thread {}", worker.getName());
+        // one dedicated worker thread per queue
+        executor = Executors.newFixedThreadPool(3);
+        executor.submit(() -> consume(thumbnailQueue, this::generateThumbnail));
+        executor.submit(() -> consume(logUploadQueue, this::logUpload));
+        executor.submit(() -> consume(notifyAdminQueue, this::notifyAdmin));
+        log.info("started 3 queue workers (thumbnail, log_upload, notify_admin)");
     }
 
-    private void loop() {
+    private void consume(TaskQueue queue, TaskHandler handler) {
         while (running) {
             try {
-                // BLOCKS here until a task is available — no busy polling
-                ThumbnailTask task = taskQueue.take();
-                long waitedMs = System.currentTimeMillis() - task.enqueuedAtMs();
-                log.info("WORKER picked up task for user id={} (waited {}ms in queue) on thread {}",
-                        task.userId(), waitedMs, Thread.currentThread().getName());
-
-                thumbnailService.generateThumbnail(task.userId());
-
-                log.info("WORKER finished task for user id={}", task.userId());
+                ThumbnailTask task = queue.take();
+                long waited = System.currentTimeMillis() - task.enqueuedAtMs();
+                log.info("[{}] worker on {} picked up user id={} (waited {}ms)",
+                        queue.getName(), Thread.currentThread().getName(), task.userId(), waited);
+                handler.handle(task.userId());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.info("queue worker interrupted, shutting down");
                 break;
             } catch (Exception e) {
-                // one bad task must not kill the loop
-                log.error("WORKER error processing task", e);
+                log.error("[{}] worker error", queue.getName(), e);
             }
         }
+    }
+
+    @FunctionalInterface
+    private interface TaskHandler {
+        void handle(Integer userId) throws Exception;
+    }
+
+    // ---- the three task functions -------------------------------------
+
+    private void generateThumbnail(Integer userId) {
+        thumbnailService.generateThumbnail(userId);
+        log.info("generate_thumbnail done for user id={}", userId);
+    }
+
+    private void logUpload(Integer userId) throws InterruptedException {
+        Thread.sleep(1000);
+        log.info("log_upload done for user id={}", userId);
+    }
+
+    private void notifyAdmin(Integer userId) throws InterruptedException {
+        Thread.sleep(2000);
+        log.info("notify_admin done for user id={}", userId);
     }
 
     @PreDestroy
     public void stop() {
         running = false;
-        if (worker != null) {
-            worker.interrupt();
+        if (executor != null) {
+            executor.shutdownNow();
         }
     }
 }
